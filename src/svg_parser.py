@@ -35,7 +35,7 @@ import sys
 from collections import defaultdict
 
 # Internal Imports
-from constants import SEMANTIC_ID_TO_LABEL, LAYER_LABEL_MAP, SVG_NS, INKSCAPE_NS
+from constants import SEMANTIC_ID_TO_LABEL, LAYER_LABEL_MAP, LAYER_TRANSLATIONS, SVG_NS, INKSCAPE_NS
 from geometry import parse_path_geometry, segments_bbox, total_length, segment_length
 
 # ===========================================================================
@@ -166,10 +166,14 @@ def parse_svg_to_contract(svg_file_path: str,
         )
         layer_id = group.attrib.get("id", "")
 
+        raw_layer_name = layer_label_attrib or layer_id
+
         # Only process top-level named layers
-        if not layer_label_attrib and not layer_id:
+        if not raw_layer_name:
             continue
-        layer_name = layer_label_attrib or layer_id
+
+        # Translate Chinese layer names to English if applicable
+        layer_name = LAYER_TRANSLATIONS.get(raw_layer_name, raw_layer_name)
         fallback_semantic_label = LAYER_LABEL_MAP.get(
             layer_name, layer_name.lower())
 
@@ -467,23 +471,24 @@ def parse_svg_to_contract(svg_file_path: str,
         json.dump(contract, f, indent=2, ensure_ascii=False)
 
     # Print summary
-    print(f"\n{'='*55}")
-    print(f"  Contract saved → {output_path}")
-    print(f"{'='*55}")
-    print(f"  Nodes  : {len(nodes)}")
-    print(f"  Edges  : {len(edges)}")
-    print(f"  Symbols: {len(symbols)}")
-    print(f"\n  Layer breakdown:")
-    for layer, count in sorted(layer_counts.items(), key=lambda x: -x[1]):
-        print(f"    {layer:<25} {count:>4} entities")
-    if symbols:
-        print(f"\n  Detected symbol types:")
-        by_label = defaultdict(int)
-        for sym in symbols:
-            by_label[sym["semantic_label"]] += 1
-        for label, cnt in sorted(by_label.items(), key=lambda x: -x[1]):
-            print(f"    {label:<25} {cnt:>4} instances")
-    print(f"{'='*55}\n")
+    if (False):
+        print(f"\n{'='*55}")
+        print(f"  Contract saved → {output_path}")
+        print(f"{'='*55}")
+        print(f"  Nodes  : {len(nodes)}")
+        print(f"  Edges  : {len(edges)}")
+        print(f"  Symbols: {len(symbols)}")
+        print(f"\n  Layer breakdown:")
+        for layer, count in sorted(layer_counts.items(), key=lambda x: -x[1]):
+            print(f"    {layer:<25} {count:>4} entities")
+        if symbols:
+            print(f"\n  Detected symbol types:")
+            by_label = defaultdict(int)
+            for sym in symbols:
+                by_label[sym["semantic_label"]] += 1
+            for label, cnt in sorted(by_label.items(), key=lambda x: -x[1]):
+                print(f"    {label:<25} {cnt:>4} instances")
+        print(f"{'='*55}\n")
 
     return contract
 

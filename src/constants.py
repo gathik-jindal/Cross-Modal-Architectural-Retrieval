@@ -37,6 +37,13 @@ SEMANTIC_ID_TO_LABEL = {
     30: "parking",
 }
 
+# Map raw Chinese CAD layers to English layer names
+LAYER_TRANSLATIONS = {
+    "地饰": "FLOOR_DECORATION",
+    "家具": "FURNITURE",
+    "装施家具": "INSTALLED_FURNITURE"
+}
+
 # Layer name → rough semantic label (fallback when no semantic-id attribute)
 LAYER_LABEL_MAP = {
     "WALL":        "wall",
