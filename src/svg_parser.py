@@ -32,6 +32,7 @@ import json
 import math
 import os
 import sys
+import re
 from collections import defaultdict
 from deep_translator import GoogleTranslator
 
