@@ -75,6 +75,12 @@ data/
 
 The `contracts/` folder is NOT included in the repo. It will be generated automatically.
 
+In `src/batch_runner.py` change the following variable to your convenience, if you want to run it on the full dataset, set it to `None`
+
+```python
+TEST_LIMIT = 5
+```
+
 ### Run the batch processing script:
 
 ```bash
