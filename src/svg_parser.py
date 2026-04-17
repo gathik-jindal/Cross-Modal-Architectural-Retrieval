@@ -33,10 +33,47 @@ import math
 import os
 import sys
 from collections import defaultdict
+from deep_translator import GoogleTranslator
 
 # Internal Imports
 from constants import SEMANTIC_ID_TO_LABEL, LAYER_LABEL_MAP, LAYER_TRANSLATIONS, SVG_NS, INKSCAPE_NS
 from geometry import parse_path_geometry, segments_bbox, total_length, segment_length
+
+# ===========================================================================
+# Auto-Translator Cache (Thread-local to avoid parallel write conflicts)
+# ===========================================================================
+TRANSLATION_CACHE = {}
+
+
+def get_english_layer_name(raw_name):
+    """Checks if a layer name contains Chinese, translates it, and formats it."""
+    # If it's already in our hardcoded constants, use that first (fastest)
+    if raw_name in LAYER_TRANSLATIONS:
+        return LAYER_TRANSLATIONS[raw_name]
+
+    # Check if we've already translated this during this run
+    if raw_name in TRANSLATION_CACHE:
+        return TRANSLATION_CACHE[raw_name]
+
+    # Check if it contains Chinese characters using a regex range
+    if re.search(r'[\u4e00-\u9fff]', raw_name):
+        try:
+            # Translate to English
+            translated = GoogleTranslator(
+                source='auto', target='en').translate(raw_name)
+
+            # Clean it up to match CAD standards: "Door Fire" -> "DOOR_FIRE"
+            clean_name = translated.upper().replace(" ", "_").strip()
+
+            # Save to cache
+            TRANSLATION_CACHE[raw_name] = clean_name
+            return clean_name
+        except Exception as e:
+            print(f"  [Warning] Translation failed for '{raw_name}': {e}")
+            return raw_name  # Fallback to original if API fails
+
+    # If it's already English/alphanumeric, just uppercase it and return
+    return raw_name.upper().replace(" ", "_")
 
 # ===========================================================================
 # Main parser
@@ -173,9 +210,8 @@ def parse_svg_to_contract(svg_file_path: str,
             continue
 
         # Translate Chinese layer names to English if applicable
-        layer_name = LAYER_TRANSLATIONS.get(raw_layer_name, raw_layer_name)
-        fallback_semantic_label = LAYER_LABEL_MAP.get(
-            layer_name, layer_name.lower())
+        layer_name = get_english_layer_name(raw_layer_name)
+        fallback_semantic_label = LAYER_LABEL_MAP.get(layer_name, layer_name.lower())
 
         # --- PATH elements --------------------------------------------------
         for path_elem in group.findall(f"{ns}path"):
