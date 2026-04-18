@@ -2,6 +2,7 @@ import os
 import glob
 import concurrent.futures
 import time
+from tqdm import tqdm  # <-- Import tqdm
 
 # Import the main parser function from your svg_parser.py
 from svg_parser import parse_svg_to_contract
@@ -54,15 +55,16 @@ def batch_process(input_folder, output_folder, max_workers=None, limit=None):
         # Submit all tasks to the process pool
         futures = {executor.submit(process_single_svg, svg, output_folder): svg for svg in svg_files}
         
-        # Gather results as they finish
-        for future in concurrent.futures.as_completed(futures):
+        # Gather results as they finish, wrapped in tqdm for the progress bar
+        for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc=f"Processing {os.path.basename(input_folder)}"):
             success, message = future.result()
             if success:
                 success_count += 1
             else:
                 fail_count += 1
                 failed_files.append(message)
-                print(f"❌ Failed: {message}")
+                # Use tqdm.write instead of print so it doesn't scramble the progress bar
+                tqdm.write(f"❌ Failed: {message}")
 
     elapsed = time.time() - start_time
     print(f"\n✅ Finished processing '{input_folder}' in {elapsed:.2f} seconds.")
@@ -79,9 +81,9 @@ if __name__ == "__main__":
     
     # ==========================================
     # SET YOUR TEST LIMIT HERE
-    # Change to None when you are ready to run all 9k files
+    # Change to None when you are ready to run all files
     # ==========================================
-    TEST_LIMIT = 5 
+    TEST_LIMIT = None
     
     # Run the batch job for both train and test folders
     for job in directories_to_process:
