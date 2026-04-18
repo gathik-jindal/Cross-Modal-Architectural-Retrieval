@@ -47,6 +47,26 @@ Person 2 (Spatial Architect) does not need actual SVG files parsed. They just ne
 - **The "Something More":** They need to define a strict JSON schema or Python dictionary structure. For example, they must agree that the output will be a list of nodes (e.g., `{"id": 1, "type": "bedroom", "coordinates": [...]}`) and a list of edges (e.g., `{"source": 1, "target": 2, "relation": "adjacent"}`).
 - **How to start:** Person 1 and 2 write a dummy JSON file by hand that represents a fake, simple floor plan. Person 2 uses this fake file to build their graph-encoding model while Person 1 figures out how to extract real data into that exact format.
 
+#### Final Person 2 Contract (Locked for implementation)
+
+- **Input file format:** one `*_contract.json` per plan from `train/`.
+- **Input keys consumed by Person 2:**
+  - `nodes`: list of node dictionaries with geometry and semantic fields.
+  - `edges`: list of edge dictionaries with `source`, `target`, `relation`, `distance`.
+  - `metadata.filename`: stable identifier for indexing.
+- **Node feature schema (v1):**
+  - **Numeric:** `features.length`, `features.center` (2), `features.bbox` (4).
+  - **Categorical encoded as ids/one-hot:** `semantic_id`, `layer`, `geometry_type` / `geometry_type_onehot`.
+  - **Auxiliary:** `instance_id` flag (`instance_id != -1`).
+- **Edge feature schema (v1):**
+  - Topology: directed `edge_index` from node id mapping.
+  - Edge attributes: `distance` and relation id (`adjacent`, `same_layer_adjacent`, `wall_window`).
+- **Output from Person 2:** one graph embedding vector per floor plan, shape `[256]`, L2-normalized for cosine retrieval.
+- **Artifact contract for Person 4:**
+  - `embeddings.npy` (shape `[N, 256]`)
+  - `embedding_index.json` mapping row -> source `*_contract.json`
+  - optional `embeddings.pt` mirror for PyTorch workflows
+
 ### 2. Person 3 (The Text Specialist) is Already Independent
 
 Person 3 actually doesn't have to wait for anyone. The natural language pipeline is entirely separated from the geometric parsing.
