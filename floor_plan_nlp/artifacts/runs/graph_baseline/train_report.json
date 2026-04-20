@@ -1,0 +1,110 @@
+{
+  "device": "cuda",
+  "mixed_precision": true,
+  "num_graphs": 4265,
+  "split_sizes": {
+    "train": 3412,
+    "val": 426,
+    "test": 427
+  },
+  "best_epoch": 10,
+  "best_val_loss": 0.9961446126302084,
+  "test_loss": 1.0446882046916166,
+  "test_acc": 0.6885245901639344,
+  "wall_seconds": 423.81616401672363,
+  "epoch1_seconds": 42.407,
+  "projected_20_epoch_seconds": 848.1399999999999,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 2.095641,
+      "val_loss": 1.728197,
+      "val_acc": 0.565728,
+      "epoch_seconds": 42.407,
+      "samples_per_sec": 80.4584,
+      "mps_memory_bytes": null
+    },
+    {
+      "epoch": 2,
+      "train_loss": 1.678227,
+      "val_loss": 1.563252,
+      "val_acc": 0.619718,
+      "epoch_seconds": 40.3177,
+      "samples_per_sec": 84.6279,
+      "mps_memory_bytes": null
+    },
+    {
+      "epoch": 3,
+      "train_loss": 1.525958,
+      "val_loss": 1.499631,
+      "val_acc": 0.629108,
+      "epoch_seconds": 41.6686,
+      "samples_per_sec": 81.8841,
+      "mps_memory_bytes": null
+    },
+    {
+      "epoch": 4,
+      "train_loss": 1.373178,
+      "val_loss": 1.285752,
+      "val_acc": 0.643192,
+      "epoch_seconds": 42.9629,
+      "samples_per_sec": 79.4173,
+      "mps_memory_bytes": null
+    },
+    {
+      "epoch": 5,
+      "train_loss": 1.272345,
+      "val_loss": 1.240999,
+      "val_acc": 0.638498,
+      "epoch_seconds": 41.384,
+      "samples_per_sec": 82.4474,
+      "mps_memory_bytes": null
+    },
+    {
+      "epoch": 6,
+      "train_loss": 1.187081,
+      "val_loss": 1.286698,
+      "val_acc": 0.631455,
+      "epoch_seconds": 40.4955,
+      "samples_per_sec": 84.2562,
+      "mps_memory_bytes": null
+    },
+    {
+      "epoch": 7,
+      "train_loss": 1.111568,
+      "val_loss": 1.155781,
+      "val_acc": 0.673709,
+      "epoch_seconds": 43.6214,
+      "samples_per_sec": 78.2184,
+      "mps_memory_bytes": null
+    },
+    {
+      "epoch": 8,
+      "train_loss": 1.038718,
+      "val_loss": 1.069713,
+      "val_acc": 0.694836,
+      "epoch_seconds": 41.1184,
+      "samples_per_sec": 82.9799,
+      "mps_memory_bytes": null
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.964115,
+      "val_loss": 1.169287,
+      "val_acc": 0.697183,
+      "epoch_seconds": 42.7727,
+      "samples_per_sec": 79.7705,
+      "mps_memory_bytes": null
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.92643,
+      "val_loss": 0.996145,
+      "val_acc": 0.723005,
+      "epoch_seconds": 42.2385,
+      "samples_per_sec": 80.7793,
+      "mps_memory_bytes": null
+    }
+  ],
+  "tuning_recommendation": "If epoch time > 180s on MPS, lower batch size to 4. If epoch time < 45s and stable memory, try batch size 12."
+}

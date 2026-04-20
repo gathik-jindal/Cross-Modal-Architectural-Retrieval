@@ -1,0 +1,788 @@
+{
+  "pre_training_metrics": {
+    "spread": 0.03230000000000001,
+    "mean_gap": 0.0003399999999999992
+  },
+  "retrieval_samples": [
+    {
+      "query_id": "fp_01313",
+      "query_beds": 2,
+      "query_text": "This is a 2 bedroom and 1 bathroom residential unit. The carpet area is approximately 1084 square fe",
+      "top_k_plans": [
+        {
+          "row": 2449,
+          "floor_plan_id": "0203-0076.svg",
+          "source_json": "../train/0203-0076_contract.json"
+        },
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        },
+        {
+          "row": 2450,
+          "floor_plan_id": "0203-0093.svg",
+          "source_json": "../train/0203-0093_contract.json"
+        },
+        {
+          "row": 2422,
+          "floor_plan_id": "0198-0003.svg",
+          "source_json": "../train/0198-0003_contract.json"
+        },
+        {
+          "row": 2296,
+          "floor_plan_id": "0181-0059.svg",
+          "source_json": "../train/0181-0059_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.1062,
+        0.1061,
+        0.106,
+        0.106,
+        0.106
+      ]
+    },
+    {
+      "query_id": "fp_01561",
+      "query_beds": 3,
+      "query_text": "This is a 3 bedroom and 3 bathroom residential unit. The carpet area is approximately 1211 square fe",
+      "top_k_plans": [
+        {
+          "row": 2449,
+          "floor_plan_id": "0203-0076.svg",
+          "source_json": "../train/0203-0076_contract.json"
+        },
+        {
+          "row": 2422,
+          "floor_plan_id": "0198-0003.svg",
+          "source_json": "../train/0198-0003_contract.json"
+        },
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        },
+        {
+          "row": 2450,
+          "floor_plan_id": "0203-0093.svg",
+          "source_json": "../train/0203-0093_contract.json"
+        },
+        {
+          "row": 2217,
+          "floor_plan_id": "0168-0019.svg",
+          "source_json": "../train/0168-0019_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.0969,
+        0.0969,
+        0.0969,
+        0.0968,
+        0.0968
+      ]
+    },
+    {
+      "query_id": "fp_01086",
+      "query_beds": 1,
+      "query_text": "This is a 1 bedroom and 1 bathroom residential unit. The carpet area is approximately 510 square fee",
+      "top_k_plans": [
+        {
+          "row": 2449,
+          "floor_plan_id": "0203-0076.svg",
+          "source_json": "../train/0203-0076_contract.json"
+        },
+        {
+          "row": 2422,
+          "floor_plan_id": "0198-0003.svg",
+          "source_json": "../train/0198-0003_contract.json"
+        },
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        },
+        {
+          "row": 2450,
+          "floor_plan_id": "0203-0093.svg",
+          "source_json": "../train/0203-0093_contract.json"
+        },
+        {
+          "row": 2296,
+          "floor_plan_id": "0181-0059.svg",
+          "source_json": "../train/0181-0059_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.0958,
+        0.0954,
+        0.0953,
+        0.0953,
+        0.0952
+      ]
+    },
+    {
+      "query_id": "fp_01136",
+      "query_beds": 3,
+      "query_text": "This is a 3 bedroom and 1 bathroom residential unit. The carpet area is approximately 1098 square fe",
+      "top_k_plans": [
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        },
+        {
+          "row": 2217,
+          "floor_plan_id": "0168-0019.svg",
+          "source_json": "../train/0168-0019_contract.json"
+        },
+        {
+          "row": 2450,
+          "floor_plan_id": "0203-0093.svg",
+          "source_json": "../train/0203-0093_contract.json"
+        },
+        {
+          "row": 2449,
+          "floor_plan_id": "0203-0076.svg",
+          "source_json": "../train/0203-0076_contract.json"
+        },
+        {
+          "row": 2296,
+          "floor_plan_id": "0181-0059.svg",
+          "source_json": "../train/0181-0059_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.0957,
+        0.0957,
+        0.0956,
+        0.0955,
+        0.0955
+      ]
+    },
+    {
+      "query_id": "fp_00534",
+      "query_beds": 4,
+      "query_text": "A commercial layout. This is a 4 bedroom and 2 bathroom residential unit. The carpet area is approxi",
+      "top_k_plans": [
+        {
+          "row": 2217,
+          "floor_plan_id": "0168-0019.svg",
+          "source_json": "../train/0168-0019_contract.json"
+        },
+        {
+          "row": 2450,
+          "floor_plan_id": "0203-0093.svg",
+          "source_json": "../train/0203-0093_contract.json"
+        },
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        },
+        {
+          "row": 2296,
+          "floor_plan_id": "0181-0059.svg",
+          "source_json": "../train/0181-0059_contract.json"
+        },
+        {
+          "row": 2117,
+          "floor_plan_id": "0155-0067.svg",
+          "source_json": "../train/0155-0067_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.0982,
+        0.0982,
+        0.0981,
+        0.098,
+        0.0979
+      ]
+    },
+    {
+      "query_id": "fp_00416",
+      "query_beds": 2,
+      "query_text": "This is a 2 bedroom and 3 bathroom residential unit. The carpet area is approximately 977 square fee",
+      "top_k_plans": [
+        {
+          "row": 2449,
+          "floor_plan_id": "0203-0076.svg",
+          "source_json": "../train/0203-0076_contract.json"
+        },
+        {
+          "row": 2422,
+          "floor_plan_id": "0198-0003.svg",
+          "source_json": "../train/0198-0003_contract.json"
+        },
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        },
+        {
+          "row": 2450,
+          "floor_plan_id": "0203-0093.svg",
+          "source_json": "../train/0203-0093_contract.json"
+        },
+        {
+          "row": 2296,
+          "floor_plan_id": "0181-0059.svg",
+          "source_json": "../train/0181-0059_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.0929,
+        0.0928,
+        0.0927,
+        0.0927,
+        0.0927
+      ]
+    },
+    {
+      "query_id": "fp_00675",
+      "query_beds": 1,
+      "query_text": "This is a 1 bedroom and 1 bathroom residential unit. The carpet area is approximately 683 square fee",
+      "top_k_plans": [
+        {
+          "row": 2450,
+          "floor_plan_id": "0203-0093.svg",
+          "source_json": "../train/0203-0093_contract.json"
+        },
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        },
+        {
+          "row": 2449,
+          "floor_plan_id": "0203-0076.svg",
+          "source_json": "../train/0203-0076_contract.json"
+        },
+        {
+          "row": 2217,
+          "floor_plan_id": "0168-0019.svg",
+          "source_json": "../train/0168-0019_contract.json"
+        },
+        {
+          "row": 2296,
+          "floor_plan_id": "0181-0059.svg",
+          "source_json": "../train/0181-0059_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.0886,
+        0.0886,
+        0.0885,
+        0.0884,
+        0.0884
+      ]
+    },
+    {
+      "query_id": "fp_00384",
+      "query_beds": 1,
+      "query_text": "This is a 1 bedroom and 2 bathroom residential unit. The carpet area is approximately 443 square fee",
+      "top_k_plans": [
+        {
+          "row": 2449,
+          "floor_plan_id": "0203-0076.svg",
+          "source_json": "../train/0203-0076_contract.json"
+        },
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        },
+        {
+          "row": 2450,
+          "floor_plan_id": "0203-0093.svg",
+          "source_json": "../train/0203-0093_contract.json"
+        },
+        {
+          "row": 2296,
+          "floor_plan_id": "0181-0059.svg",
+          "source_json": "../train/0181-0059_contract.json"
+        },
+        {
+          "row": 2217,
+          "floor_plan_id": "0168-0019.svg",
+          "source_json": "../train/0168-0019_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.1006,
+        0.1005,
+        0.1004,
+        0.1003,
+        0.1002
+      ]
+    },
+    {
+      "query_id": "fp_01321",
+      "query_beds": 3,
+      "query_text": "A commercial layout. This is a 3 bedroom and 3 bathroom residential unit. The carpet area is approxi",
+      "top_k_plans": [
+        {
+          "row": 2450,
+          "floor_plan_id": "0203-0093.svg",
+          "source_json": "../train/0203-0093_contract.json"
+        },
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        },
+        {
+          "row": 2217,
+          "floor_plan_id": "0168-0019.svg",
+          "source_json": "../train/0168-0019_contract.json"
+        },
+        {
+          "row": 2449,
+          "floor_plan_id": "0203-0076.svg",
+          "source_json": "../train/0203-0076_contract.json"
+        },
+        {
+          "row": 2296,
+          "floor_plan_id": "0181-0059.svg",
+          "source_json": "../train/0181-0059_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.0899,
+        0.0899,
+        0.0898,
+        0.0897,
+        0.0897
+      ]
+    },
+    {
+      "query_id": "fp_00005",
+      "query_beds": 1,
+      "query_text": "A commercial layout. This is a 1 bedroom and 3 bathroom residential unit. The carpet area is approxi",
+      "top_k_plans": [
+        {
+          "row": 2449,
+          "floor_plan_id": "0203-0076.svg",
+          "source_json": "../train/0203-0076_contract.json"
+        },
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        },
+        {
+          "row": 2422,
+          "floor_plan_id": "0198-0003.svg",
+          "source_json": "../train/0198-0003_contract.json"
+        },
+        {
+          "row": 2450,
+          "floor_plan_id": "0203-0093.svg",
+          "source_json": "../train/0203-0093_contract.json"
+        },
+        {
+          "row": 2296,
+          "floor_plan_id": "0181-0059.svg",
+          "source_json": "../train/0181-0059_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.0861,
+        0.0858,
+        0.0858,
+        0.0858,
+        0.0858
+      ]
+    },
+    {
+      "query_id": "fp_01604",
+      "query_beds": 1,
+      "query_text": "This is a 1 bedroom and 1 bathroom residential unit. The carpet area is approximately 569 square fee",
+      "top_k_plans": [
+        {
+          "row": 2450,
+          "floor_plan_id": "0203-0093.svg",
+          "source_json": "../train/0203-0093_contract.json"
+        },
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        },
+        {
+          "row": 2217,
+          "floor_plan_id": "0168-0019.svg",
+          "source_json": "../train/0168-0019_contract.json"
+        },
+        {
+          "row": 2296,
+          "floor_plan_id": "0181-0059.svg",
+          "source_json": "../train/0181-0059_contract.json"
+        },
+        {
+          "row": 2117,
+          "floor_plan_id": "0155-0067.svg",
+          "source_json": "../train/0155-0067_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.0934,
+        0.0933,
+        0.0933,
+        0.0932,
+        0.0932
+      ]
+    },
+    {
+      "query_id": "fp_00788",
+      "query_beds": 4,
+      "query_text": "This is a 4 bedroom and 2 bathroom residential unit. The carpet area is approximately 1648 square fe",
+      "top_k_plans": [
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        },
+        {
+          "row": 2450,
+          "floor_plan_id": "0203-0093.svg",
+          "source_json": "../train/0203-0093_contract.json"
+        },
+        {
+          "row": 2217,
+          "floor_plan_id": "0168-0019.svg",
+          "source_json": "../train/0168-0019_contract.json"
+        },
+        {
+          "row": 2449,
+          "floor_plan_id": "0203-0076.svg",
+          "source_json": "../train/0203-0076_contract.json"
+        },
+        {
+          "row": 2296,
+          "floor_plan_id": "0181-0059.svg",
+          "source_json": "../train/0181-0059_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.0924,
+        0.0924,
+        0.0923,
+        0.0923,
+        0.0922
+      ]
+    },
+    {
+      "query_id": "fp_00012",
+      "query_beds": 3,
+      "query_text": "A commercial layout. This is a 3 bedroom and 3 bathroom residential unit. The carpet area is approxi",
+      "top_k_plans": [
+        {
+          "row": 2449,
+          "floor_plan_id": "0203-0076.svg",
+          "source_json": "../train/0203-0076_contract.json"
+        },
+        {
+          "row": 2422,
+          "floor_plan_id": "0198-0003.svg",
+          "source_json": "../train/0198-0003_contract.json"
+        },
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        },
+        {
+          "row": 2296,
+          "floor_plan_id": "0181-0059.svg",
+          "source_json": "../train/0181-0059_contract.json"
+        },
+        {
+          "row": 2466,
+          "floor_plan_id": "0207-0012.svg",
+          "source_json": "../train/0207-0012_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.0859,
+        0.0858,
+        0.0856,
+        0.0855,
+        0.0855
+      ]
+    },
+    {
+      "query_id": "fp_00612",
+      "query_beds": 4,
+      "query_text": "A commercial layout. This is a 4 bedroom and 2 bathroom residential unit. The carpet area is approxi",
+      "top_k_plans": [
+        {
+          "row": 2449,
+          "floor_plan_id": "0203-0076.svg",
+          "source_json": "../train/0203-0076_contract.json"
+        },
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        },
+        {
+          "row": 2450,
+          "floor_plan_id": "0203-0093.svg",
+          "source_json": "../train/0203-0093_contract.json"
+        },
+        {
+          "row": 2296,
+          "floor_plan_id": "0181-0059.svg",
+          "source_json": "../train/0181-0059_contract.json"
+        },
+        {
+          "row": 2217,
+          "floor_plan_id": "0168-0019.svg",
+          "source_json": "../train/0168-0019_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.1019,
+        0.1017,
+        0.1016,
+        0.1015,
+        0.1014
+      ]
+    },
+    {
+      "query_id": "fp_01032",
+      "query_beds": 4,
+      "query_text": "This is a 4 bedroom and 1 bathroom residential unit. The carpet area is approximately 1672 square fe",
+      "top_k_plans": [
+        {
+          "row": 2466,
+          "floor_plan_id": "0207-0012.svg",
+          "source_json": "../train/0207-0012_contract.json"
+        },
+        {
+          "row": 2422,
+          "floor_plan_id": "0198-0003.svg",
+          "source_json": "../train/0198-0003_contract.json"
+        },
+        {
+          "row": 2472,
+          "floor_plan_id": "0207-0064.svg",
+          "source_json": "../train/0207-0064_contract.json"
+        },
+        {
+          "row": 2449,
+          "floor_plan_id": "0203-0076.svg",
+          "source_json": "../train/0203-0076_contract.json"
+        },
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.089,
+        0.0889,
+        0.0888,
+        0.0884,
+        0.0883
+      ]
+    },
+    {
+      "query_id": "fp_01887",
+      "query_beds": 3,
+      "query_text": "A commercial layout. This is a 3 bedroom and 2 bathroom residential unit. The carpet area is approxi",
+      "top_k_plans": [
+        {
+          "row": 2217,
+          "floor_plan_id": "0168-0019.svg",
+          "source_json": "../train/0168-0019_contract.json"
+        },
+        {
+          "row": 2450,
+          "floor_plan_id": "0203-0093.svg",
+          "source_json": "../train/0203-0093_contract.json"
+        },
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        },
+        {
+          "row": 2296,
+          "floor_plan_id": "0181-0059.svg",
+          "source_json": "../train/0181-0059_contract.json"
+        },
+        {
+          "row": 2117,
+          "floor_plan_id": "0155-0067.svg",
+          "source_json": "../train/0155-0067_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.1025,
+        0.1025,
+        0.1024,
+        0.1023,
+        0.1023
+      ]
+    },
+    {
+      "query_id": "fp_01251",
+      "query_beds": 4,
+      "query_text": "This is a 4 bedroom and 2 bathroom residential unit. The carpet area is approximately 1354 square fe",
+      "top_k_plans": [
+        {
+          "row": 2217,
+          "floor_plan_id": "0168-0019.svg",
+          "source_json": "../train/0168-0019_contract.json"
+        },
+        {
+          "row": 443,
+          "floor_plan_id": "0032-0018.svg",
+          "source_json": "../train/0032-0018_contract.json"
+        },
+        {
+          "row": 2450,
+          "floor_plan_id": "0203-0093.svg",
+          "source_json": "../train/0203-0093_contract.json"
+        },
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        },
+        {
+          "row": 2117,
+          "floor_plan_id": "0155-0067.svg",
+          "source_json": "../train/0155-0067_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.1025,
+        0.1025,
+        0.1025,
+        0.1024,
+        0.1024
+      ]
+    },
+    {
+      "query_id": "fp_01615",
+      "query_beds": 3,
+      "query_text": "This is a 3 bedroom and 3 bathroom residential unit. The carpet area is approximately 1254 square fe",
+      "top_k_plans": [
+        {
+          "row": 2217,
+          "floor_plan_id": "0168-0019.svg",
+          "source_json": "../train/0168-0019_contract.json"
+        },
+        {
+          "row": 2450,
+          "floor_plan_id": "0203-0093.svg",
+          "source_json": "../train/0203-0093_contract.json"
+        },
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        },
+        {
+          "row": 2296,
+          "floor_plan_id": "0181-0059.svg",
+          "source_json": "../train/0181-0059_contract.json"
+        },
+        {
+          "row": 2117,
+          "floor_plan_id": "0155-0067.svg",
+          "source_json": "../train/0155-0067_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.0926,
+        0.0925,
+        0.0925,
+        0.0924,
+        0.0924
+      ]
+    },
+    {
+      "query_id": "fp_00715",
+      "query_beds": 4,
+      "query_text": "This is a 4 bedroom and 1 bathroom residential unit. The carpet area is approximately 1397 square fe",
+      "top_k_plans": [
+        {
+          "row": 2217,
+          "floor_plan_id": "0168-0019.svg",
+          "source_json": "../train/0168-0019_contract.json"
+        },
+        {
+          "row": 2450,
+          "floor_plan_id": "0203-0093.svg",
+          "source_json": "../train/0203-0093_contract.json"
+        },
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        },
+        {
+          "row": 2296,
+          "floor_plan_id": "0181-0059.svg",
+          "source_json": "../train/0181-0059_contract.json"
+        },
+        {
+          "row": 2117,
+          "floor_plan_id": "0155-0067.svg",
+          "source_json": "../train/0155-0067_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.0973,
+        0.0971,
+        0.097,
+        0.0969,
+        0.0969
+      ]
+    },
+    {
+      "query_id": "fp_00705",
+      "query_beds": 3,
+      "query_text": "This is a 3 bedroom and 2 bathroom residential unit. The carpet area is approximately 1133 square fe",
+      "top_k_plans": [
+        {
+          "row": 443,
+          "floor_plan_id": "0032-0018.svg",
+          "source_json": "../train/0032-0018_contract.json"
+        },
+        {
+          "row": 2217,
+          "floor_plan_id": "0168-0019.svg",
+          "source_json": "../train/0168-0019_contract.json"
+        },
+        {
+          "row": 2450,
+          "floor_plan_id": "0203-0093.svg",
+          "source_json": "../train/0203-0093_contract.json"
+        },
+        {
+          "row": 2296,
+          "floor_plan_id": "0181-0059.svg",
+          "source_json": "../train/0181-0059_contract.json"
+        },
+        {
+          "row": 2114,
+          "floor_plan_id": "0155-0048.svg",
+          "source_json": "../train/0155-0048_contract.json"
+        }
+      ],
+      "top_k_scores": [
+        0.0821,
+        0.0819,
+        0.0818,
+        0.0818,
+        0.0817
+      ]
+    }
+  ]
+}

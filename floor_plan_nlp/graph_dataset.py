@@ -2,7 +2,7 @@ import json
 import random
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence
+from typing import Dict, Iterable, List, Optional, Sequence
 
 import torch
 from torch.utils.data import Sampler
@@ -25,10 +25,12 @@ RELATION_TO_ID = {
 
 @dataclass
 class GraphRecord:
-    data: Data
+    data: Optional[Data]
     floor_plan_id: str
     source_json: str
     num_nodes: int
+    graph_path: str = ""
+    graph_label: int = 0
 
 
 def _safe_float(value, default=0.0):
@@ -62,6 +64,14 @@ def _one_hot(index: int, width: int) -> List[float]:
     if 0 <= index < width:
         vec[index] = 1.0
     return vec
+
+
+def graph_label_from_semantics(semantic_ids: torch.Tensor, unknown_value: int = 0) -> int:
+    valid = semantic_ids[semantic_ids >= 0]
+    if valid.numel() == 0:
+        return unknown_value
+    values, counts = valid.unique(return_counts=True)
+    return int(values[counts.argmax()].item()) + 1  # +1 to keep 0 for unknown
 
 
 def contract_json_to_pyg(path: Path, category_maps: Dict[str, Dict[str, int]]) -> GraphRecord:
@@ -153,6 +163,7 @@ def contract_json_to_pyg(path: Path, category_maps: Dict[str, Dict[str, int]]) -
         floor_plan_id=floor_plan_id,
         source_json=str(path),
         num_nodes=int(x.shape[0]),
+        graph_label=graph_label_from_semantics(semantic_ids),
     )
 
 
@@ -168,26 +179,60 @@ def build_cache(
 
     skipped_files: List[str] = []
     maps = _collect_category_maps(json_paths, skipped_files)
+    cache_file = Path(cache_path)
+    graph_dir = cache_file.parent / "graphs"
+    graph_dir.mkdir(parents=True, exist_ok=True)
+
     records: List[GraphRecord] = []
-    for path in json_paths:
+    valid_count = 0
+    total_count = len(json_paths)
+    for file_idx, path in enumerate(json_paths, start=1):
         if path.name in skipped_files:
             continue
         try:
-            records.append(contract_json_to_pyg(path, maps))
+            record = contract_json_to_pyg(path, maps)
         except json.JSONDecodeError:
             skipped_files.append(path.name)
             continue
+
+        graph_name = f"graph_{valid_count:06d}.pt"
+        graph_path = graph_dir / graph_name
+        torch.save(record.data, graph_path)
+        records.append(
+            GraphRecord(
+                data=None,
+                floor_plan_id=record.floor_plan_id,
+                source_json=record.source_json,
+                num_nodes=record.num_nodes,
+                graph_path=str(graph_path),
+                graph_label=record.graph_label,
+            )
+        )
+        valid_count += 1
+
+        if file_idx == 1 or file_idx == total_count or file_idx % 200 == 0:
+            print(f"Cache build {file_idx}/{total_count} | valid={valid_count} skipped={len(skipped_files)}", flush=True)
 
     if not records:
         raise RuntimeError("No valid JSON contracts available after filtering malformed files.")
     cache_payload = {
         "records": records,
         "category_maps": maps,
+        "cache_format": "lazy_v2",
     }
-    Path(cache_path).parent.mkdir(parents=True, exist_ok=True)
-    torch.save(cache_payload, cache_path)
+    cache_file.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(cache_payload, cache_file)
 
     node_counts = [record.num_nodes for record in records]
+    first_record = records[0]
+    if first_record.data is not None:
+        feature_dim = int(first_record.data.x.shape[1])
+    elif first_record.graph_path:
+        first_graph = torch.load(first_record.graph_path, map_location="cpu", weights_only=False)
+        feature_dim = int(first_graph.x.shape[1])
+    else:
+        raise RuntimeError("Unable to determine feature_dim from cache records")
+
     stats = {
         "num_graphs": len(records),
         "node_count_min": min(node_counts),
@@ -196,7 +241,7 @@ def build_cache(
         "relation_to_id": RELATION_TO_ID,
         "layer_vocab_size": len(maps["layer_vocab"]),
         "geo_vocab_size": len(maps["geo_vocab"]),
-        "feature_dim": int(records[0].data.x.shape[1]),
+        "feature_dim": feature_dim,
         "skipped_corrupt_files": skipped_files,
     }
     Path(stats_path).parent.mkdir(parents=True, exist_ok=True)
@@ -204,8 +249,17 @@ def build_cache(
 
 
 def load_cache(cache_path: str):
-    payload = torch.load(cache_path, map_location="cpu")
-    return payload["records"], payload["category_maps"]
+    payload = torch.load(cache_path, map_location="cpu", weights_only=False)
+    records = payload["records"]
+    for record in records:
+        if not hasattr(record, "graph_path"):
+            record.graph_path = ""
+        if not hasattr(record, "graph_label"):
+            if record.data is not None and hasattr(record.data, "semantic_ids"):
+                record.graph_label = graph_label_from_semantics(record.data.semantic_ids)
+            else:
+                record.graph_label = 0
+    return records, payload["category_maps"]
 
 
 def create_or_load_split(

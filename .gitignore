@@ -212,3 +212,9 @@ __marimo__/
 
 # Local datasets
 train/
+*.pt
+*.npy
+artifacts/cache/
+artifacts/runs/
+__pycache__/
+*.pyc

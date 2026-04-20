@@ -1,0 +1,77 @@
+{
+  "query_mode": "query-floor-plan-id:0000-0002",
+  "top_k": 10,
+  "embedding_dim": 256,
+  "results": [
+    {
+      "rank": 1,
+      "row": 0,
+      "floor_plan_id": "0000-0002.svg",
+      "source_json": "../train/0000-0002_contract.json",
+      "score": 1.0
+    },
+    {
+      "rank": 2,
+      "row": 3549,
+      "floor_plan_id": "0328-0128.svg",
+      "source_json": "../train/0328-0128_contract.json",
+      "score": 0.9984862804412842
+    },
+    {
+      "rank": 3,
+      "row": 50,
+      "floor_plan_id": "0006-0021.svg",
+      "source_json": "../train/0006-0021_contract.json",
+      "score": 0.9960731267929077
+    },
+    {
+      "rank": 4,
+      "row": 2,
+      "floor_plan_id": "0000-0005.svg",
+      "source_json": "../train/0000-0005_contract.json",
+      "score": 0.9948232769966125
+    },
+    {
+      "rank": 5,
+      "row": 424,
+      "floor_plan_id": "0030-0014.svg",
+      "source_json": "../train/0030-0014_contract.json",
+      "score": 0.9942108392715454
+    },
+    {
+      "rank": 6,
+      "row": 488,
+      "floor_plan_id": "0035-0035.svg",
+      "source_json": "../train/0035-0035_contract.json",
+      "score": 0.9941921234130859
+    },
+    {
+      "rank": 7,
+      "row": 3924,
+      "floor_plan_id": "0349-1017.svg",
+      "source_json": "../train/0349-1017_contract.json",
+      "score": 0.9940011501312256
+    },
+    {
+      "rank": 8,
+      "row": 2966,
+      "floor_plan_id": "0280-0025.svg",
+      "source_json": "../train/0280-0025_contract.json",
+      "score": 0.9933252334594727
+    },
+    {
+      "rank": 9,
+      "row": 738,
+      "floor_plan_id": "0060-0083.svg",
+      "source_json": "../train/0060-0083_contract.json",
+      "score": 0.9924043416976929
+    },
+    {
+      "rank": 10,
+      "row": 1896,
+      "floor_plan_id": "0132-0010.svg",
+      "source_json": "../train/0132-0010_contract.json",
+      "score": 0.9920200109481812
+    }
+  ]
+}
