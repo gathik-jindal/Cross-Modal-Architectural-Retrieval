@@ -1,5 +1,6 @@
 import argparse
 import json
+import re
 from pathlib import Path
 
 
@@ -29,6 +30,65 @@ LABEL_REMAP = {
     "bed": "bedroom",
 }
 
+CJK_PATTERN = re.compile(r"[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]")
+_CAD_GARBAGE_RE = re.compile(
+    r"""
+    \$               # dollar CAD separators
+    | \#             # hash CAD refs
+    | \b\d{4,}\s*x\s+ # 18014 x patterns
+    | \blf\$         # lf$ CAD prefix
+    | \bp\$          # p$ CAD prefix
+    | ^\d+\s*x\s+\w  # starts with dimension x word
+    """,
+    re.VERBOSE | re.IGNORECASE,
+)
+
+
+def contains_cjk(text):
+    return bool(CJK_PATTERN.search(str(text)))
+
+
+def sanitize_label_text(text):
+    cleaned = str(text).strip().lower()
+    if "$" in cleaned:
+        cleaned = cleaned.split("$")[-1].strip()
+
+    cleaned = re.sub(r"^(?:[a-z]-)+", "", cleaned)
+    cleaned = cleaned.replace("_", " ").replace("-", " ")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+    if _CAD_GARBAGE_RE.search(cleaned):
+        return ""
+    return cleaned
+
+
+def load_label_translation_map(map_path):
+    if not map_path:
+        return {}
+
+    path = Path(map_path)
+    if not path.exists():
+        print(f"[WARN] Translation map not found: {path}. Continuing without it.")
+        return {}
+
+    mapping = {}
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+
+        source, target = line.split("=", 1)
+        source = source.strip()
+        target = target.strip()
+        if not source or not target:
+            continue
+        mapping[source] = target
+
+    print(f"Loaded {len(mapping)} label translations from {path}")
+    return mapping
+
 
 def special_count_phrase(label, count):
     if label == "furniture":
@@ -47,8 +107,12 @@ def special_count_phrase(label, count):
     return None
 
 
-def humanize_label(label):
-    label = str(label).replace("_", " ")
+def humanize_label(label, translation_map):
+    raw = str(label)
+    translated = translation_map.get(raw, raw)
+    label = sanitize_label_text(translated)
+    if not label:
+        return ""
     return LABEL_REMAP.get(label, label)
 
 
@@ -77,7 +141,7 @@ def join_english(parts):
     return f"{', '.join(parts[:-1])}, and {parts[-1]}"
 
 
-def format_inventory(inventory):
+def format_inventory(inventory, translation_map):
     filtered = []
 
     for label, count in sorted(inventory.items(), key=lambda item: item[0]):
@@ -88,7 +152,13 @@ def format_inventory(inventory):
         if not isinstance(count, int) or count <= 0:
             continue
 
-        readable = humanize_label(label)
+        readable = humanize_label(label, translation_map)
+        if not readable:
+            continue
+        # Skip unresolved CJK labels to keep BERT-facing text fully ASCII/English.
+        if contains_cjk(readable):
+            continue
+
         custom = special_count_phrase(readable, count)
         if custom is not None:
             filtered.append((count, str(label), custom))
@@ -106,15 +176,23 @@ def format_inventory(inventory):
     return join_english(phrases)
 
 
-def clean_adjacency_text(adjacency):
-    return humanize_label(adjacency)
+def clean_adjacency_text(adjacency, translation_map):
+    return humanize_label(adjacency, translation_map)
 
 
-def build_query_text(density, inventory, adjacencies):
-    inventory_text = format_inventory(inventory)
+def build_query_text(density, inventory, adjacencies, translation_map):
+    inventory_text = format_inventory(inventory, translation_map)
     query = f"This is a {density} layout featuring {inventory_text}."
 
-    cleaned_adjacencies = [clean_adjacency_text(item) for item in adjacencies[:2]]
+    cleaned_adjacencies = []
+    for item in adjacencies[:2]:
+        translated = clean_adjacency_text(item, translation_map)
+        if not translated:
+            continue
+        if contains_cjk(translated):
+            continue
+        cleaned_adjacencies.append(translated)
+
     if len(cleaned_adjacencies) == 1:
         query += f" Spatially, the {cleaned_adjacencies[0]}."
     elif len(cleaned_adjacencies) == 2:
@@ -147,9 +225,10 @@ def scale_bucket(inventory):
     return 3
 
 
-def generate_pairs(attributes_path, output_path):
+def generate_pairs(attributes_path, output_path, label_map_path):
     attributes = json.loads(Path(attributes_path).read_text(encoding="utf-8"))
     print(f"Loaded {len(attributes)} attribute records from {attributes_path}")
+    translation_map = load_label_translation_map(label_map_path)
 
     pairs = []
     bucket_counts = {0: 0, 1: 0, 2: 0, 3: 0}
@@ -164,6 +243,7 @@ def generate_pairs(attributes_path, output_path):
             density=density,
             inventory=inventory,
             adjacencies=adjacencies,
+            translation_map=translation_map,
         )
         bucket = scale_bucket(inventory)
         bucket_counts[bucket] = bucket_counts.get(bucket, 0) + 1
@@ -202,9 +282,18 @@ def parse_args():
         default="pairs.json",
         help="Path to write pairs JSON",
     )
+    parser.add_argument(
+        "--label-map-path",
+        default="label_translation_map.txt",
+        help="Path to text file with source_label=english_translation entries",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    generate_pairs(attributes_path=args.attributes_path, output_path=args.output_path)
+    generate_pairs(
+        attributes_path=args.attributes_path,
+        output_path=args.output_path,
+        label_map_path=args.label_map_path,
+    )

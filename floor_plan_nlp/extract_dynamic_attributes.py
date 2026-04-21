@@ -1,11 +1,46 @@
 import argparse
 import json
+import re
 from collections import Counter
 from pathlib import Path
 
 
 INVALID_LABELS = {"", "0", "-1"}
 ADJACENCY_IGNORE_LABELS = {"wall", "window", "dimension", "room_text"}
+
+_CAD_GARBAGE_RE = re.compile(
+    r"""
+    \$               # dollar signs used in CAD layer names
+    | \#             # hash references
+    | \b\d{4,}x\b   # patterns like 18014x
+    | \blf\$         # explicit CAD lf$ prefix
+    | \bp\$          # explicit CAD p$ prefix
+    | ^\d+x\w        # starts like 123xword
+    """,
+    re.VERBOSE | re.IGNORECASE,
+)
+
+
+def sanitize_semantic_label(label):
+    text = str(label).strip().lower()
+
+    # Keep only semantic tail after CAD namespace separators.
+    if "$" in text:
+        text = text.split("$")[-1].strip()
+
+    # Remove chained one-letter discipline prefixes such as a-, p-, m-.
+    text = re.sub(r"^(?:[a-z]-)+", "", text)
+
+    text = text.replace("-", "_")
+    text = re.sub(r"[^a-z0-9_]", "_", text)
+    text = re.sub(r"_+", "_", text).strip("_")
+
+    if not text:
+        return None
+    if _CAD_GARBAGE_RE.search(text):
+        return None
+
+    return text
 
 
 def normalize_label(raw_label):
@@ -14,7 +49,10 @@ def normalize_label(raw_label):
     label = str(raw_label).strip()
     if label in INVALID_LABELS:
         return None
-    return label
+    cleaned = sanitize_semantic_label(label)
+    if cleaned in INVALID_LABELS:
+        return None
+    return cleaned
 
 
 def resolve_floor_plan_id(contract_path, data):

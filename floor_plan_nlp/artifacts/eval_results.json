@@ -1,14 +1,23 @@
 {
   "n_queries": 200,
+  "n_index": 4265,
+  "evaluation": "exact_floor_plan_id_match",
   "checkpoint": "artifacts/runs/alignment/best_alignment_checkpoint.pt",
   "metrics": {
-    "recall@1": 0.67,
-    "recall@5": 0.85,
-    "recall@10": 0.92
+    "recall@1": 0.02,
+    "recall@5": 0.115,
+    "recall@10": 0.235
   },
-  "mrr": 0.7469900793650794,
-  "per_bedroom_recall5": {
-    "0": 0.99,
-    "4": 0.71
+  "mrr": 0.06389880952380952,
+  "random_baseline": {
+    "recall@1": 0.00023446658851113716,
+    "recall@5": 0.0011723329425556857,
+    "recall@10": 0.0023446658851113715
+  },
+  "per_bucket_recall5": {
+    "0": 0.1,
+    "1": 0.08,
+    "2": 0.14,
+    "3": 0.14
   }
 }
