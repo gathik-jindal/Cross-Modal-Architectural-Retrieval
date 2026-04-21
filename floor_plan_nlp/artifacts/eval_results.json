@@ -1,0 +1,14 @@
+{
+  "n_queries": 200,
+  "checkpoint": "artifacts/runs/alignment/best_alignment_checkpoint.pt",
+  "metrics": {
+    "recall@1": 0.67,
+    "recall@5": 0.85,
+    "recall@10": 0.92
+  },
+  "mrr": 0.7469900793650794,
+  "per_bedroom_recall5": {
+    "0": 0.99,
+    "4": 0.71
+  }
+}

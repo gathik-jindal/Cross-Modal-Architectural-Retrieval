@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from graph_dataset import load_cache
+from graph_dataset import load_cache, contract_json_to_pyg
 from graph_model import GraphPlanEncoder
 
 try:
@@ -37,8 +37,21 @@ def format_seconds(seconds: float) -> str:
 
 
 class CachedGraphDataset(Dataset):
-    def __init__(self, records):
+    def __init__(self, records, category_maps, base_dir: Path):
         self.records = records
+        self.category_maps = category_maps
+        self.base_dir = base_dir
+
+    def _resolve_path(self, p: str | None) -> Path | None:
+        if not p:
+            return None
+        path = Path(p)
+        if path.exists():
+            return path
+        resolved = (self.base_dir / path).resolve()
+        if resolved.exists():
+            return resolved
+        return path
 
     def __len__(self):
         return len(self.records)
@@ -48,7 +61,13 @@ class CachedGraphDataset(Dataset):
         if record.data is not None:
             return record.data
         if record.graph_path:
-            return torch.load(record.graph_path, map_location="cpu", weights_only=False)
+            graph_path = self._resolve_path(record.graph_path)
+            if graph_path and graph_path.exists():
+                return torch.load(graph_path, map_location="cpu", weights_only=False)
+        if record.source_json:
+            source_json = self._resolve_path(record.source_json)
+            rec = contract_json_to_pyg(source_json, self.category_maps)
+            return rec.data
         raise RuntimeError("Record has neither in-memory data nor graph_path")
 
 
@@ -71,8 +90,9 @@ def main():
     else:
         print(f"Export device: {device} | workers={args.num_workers}")
 
-    records, _ = load_cache(args.cache_path)
-    graphs = CachedGraphDataset(records)
+    records, category_maps = load_cache(args.cache_path)
+    base_dir = Path(args.cache_path).resolve().parents[2]
+    graphs = CachedGraphDataset(records, category_maps, base_dir=base_dir)
     loader = DataLoader(
         graphs,
         batch_size=args.batch_size,
@@ -83,14 +103,30 @@ def main():
     )
 
     checkpoint = torch.load(args.checkpoint_path, map_location=device, weights_only=False)
-    model = GraphPlanEncoder(
-        in_dim=checkpoint["in_dim"],
-        hidden_dim=checkpoint["config"]["hidden_dim"],
-        out_dim=checkpoint["config"]["out_dim"],
-        dropout=checkpoint["config"]["dropout"],
-        conv_type=checkpoint["config"]["conv_type"],
-    ).to(device)
-    model.load_state_dict(checkpoint["model_state_dict"])
+
+    # Support both Person 2's original checkpoint and Person 4's alignment checkpoint
+    if "graph_encoder" in checkpoint:
+        # Person 4's alignment checkpoint
+        print("Detected alignment checkpoint (Person 4)")
+        model = GraphPlanEncoder(
+            in_dim=checkpoint["in_dim"],
+            hidden_dim=checkpoint["config"]["hidden_dim"],
+            out_dim=256,
+            dropout=checkpoint["config"]["dropout"],
+            conv_type=checkpoint["config"]["conv_type"],
+        ).to(device)
+        model.load_state_dict(checkpoint["graph_encoder"])
+    else:
+        # Person 2's original checkpoint
+        print("Detected original graph checkpoint (Person 2)")
+        model = GraphPlanEncoder(
+            in_dim=checkpoint["in_dim"],
+            hidden_dim=checkpoint["config"]["hidden_dim"],
+            out_dim=checkpoint["config"]["out_dim"],
+            dropout=checkpoint["config"]["dropout"],
+            conv_type=checkpoint["config"]["conv_type"],
+        ).to(device)
+        model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
 
     all_embeddings = []

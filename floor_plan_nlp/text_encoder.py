@@ -1,4 +1,5 @@
 import json
+import re
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -60,6 +61,10 @@ class TextEncoder(nn.Module):
             truncation=True,
             max_length=128
         )
+        
+        # Move tokens to the same device as the model
+        device = next(self.parameters()).device
+        tokens = {k: v.to(device) for k, v in tokens.items()}
 
         # Forward through BERT
         outputs = self.bert(**tokens)
@@ -119,20 +124,21 @@ def preprocess_query(query: str) -> str:
     Handles abbreviations common in Indian real-estate descriptions
     (relevant because FloorPlanCAD includes Indian commercial buildings).
     """
-    replacements = {
-        "bhk":  "bedroom hall kitchen",
-        "bhk.": "bedroom hall kitchen",
-        "rk":   "room kitchen",
-        "sqft": "square feet",
-        "sq ft":"square feet",
-        "w/":   "with",
-        "w/o":  "without",
-        "2br":  "2 bedroom",
-        "3br":  "3 bedroom",
-    }
+    # Use regex word boundaries to avoid corrupting normal words
+    # (e.g. replacing "rk" inside "workspace").
+    replacements = [
+        (r"\bbhk\.?\b", "bedroom hall kitchen"),
+        (r"\brk\b", "room kitchen"),
+        (r"\bsq\s*ft\b", "square feet"),
+        (r"\bsqft\b", "square feet"),
+        (r"\bw/\b", "with"),
+        (r"\bw/o\b", "without"),
+        (r"\b2br\b", "2 bedroom"),
+        (r"\b3br\b", "3 bedroom"),
+    ]
     q = query.lower().strip()
-    for abbr, expansion in replacements.items():
-        q = q.replace(abbr, expansion)
+    for pattern, expansion in replacements:
+        q = re.sub(pattern, expansion, q)
     return q
 
 
