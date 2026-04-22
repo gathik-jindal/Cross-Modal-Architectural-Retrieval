@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 
 try:
     from torch_geometric.nn import GCNConv, SAGEConv, global_max_pool, global_mean_pool
@@ -23,16 +24,24 @@ class GraphPlanEncoder(nn.Module):
         out_dim: int = 256,
         dropout: float = 0.2,
         conv_type: str = "sage",
+        num_layers: int = 3,
+        use_gradient_checkpointing: bool = False,
     ):
         super().__init__()
+        if num_layers < 2:
+            raise ValueError("num_layers must be >= 2")
+
         conv_cls = SAGEConv if conv_type == "sage" else GCNConv
-        self.conv1 = conv_cls(in_dim, hidden_dim)
-        self.conv2 = conv_cls(hidden_dim, hidden_dim)
-        self.conv3 = conv_cls(hidden_dim, hidden_dim)
-        self.norm1 = nn.LayerNorm(hidden_dim)
-        self.norm2 = nn.LayerNorm(hidden_dim)
-        self.norm3 = nn.LayerNorm(hidden_dim)
+        self.convs = nn.ModuleList()
+        self.norms = nn.ModuleList()
+        self.convs.append(conv_cls(in_dim, hidden_dim))
+        self.norms.append(nn.LayerNorm(hidden_dim))
+        for _ in range(num_layers - 1):
+            self.convs.append(conv_cls(hidden_dim, hidden_dim))
+            self.norms.append(nn.LayerNorm(hidden_dim))
+
         self.dropout = nn.Dropout(dropout)
+        self.use_gradient_checkpointing = use_gradient_checkpointing
         self.readout = nn.Sequential(
             nn.Linear(hidden_dim * 2, hidden_dim),
             nn.ReLU(),
@@ -40,22 +49,27 @@ class GraphPlanEncoder(nn.Module):
             nn.Linear(hidden_dim, out_dim),
         )
 
+    def _forward_block(self, x, edge_index, conv, norm, use_dropout):
+        x = conv(x, edge_index)
+        x = norm(x)
+        x = F.relu(x)
+        if use_dropout:
+            x = self.dropout(x)
+        return x
+
     def forward(self, batch):
         x, edge_index, graph_batch = batch.x, batch.edge_index, batch.batch
 
-        x = self.conv1(x, edge_index)
-        x = self.norm1(x)
-        x = F.relu(x)
-        x = self.dropout(x)
-
-        x = self.conv2(x, edge_index)
-        x = self.norm2(x)
-        x = F.relu(x)
-        x = self.dropout(x)
-
-        x = self.conv3(x, edge_index)
-        x = self.norm3(x)
-        x = F.relu(x)
+        for layer_idx, (conv, norm) in enumerate(zip(self.convs, self.norms)):
+            use_dropout = layer_idx < (len(self.convs) - 1)
+            if self.use_gradient_checkpointing and self.training and x.requires_grad:
+                x = checkpoint(
+                    lambda x_: self._forward_block(x_, edge_index, conv, norm, use_dropout),
+                    x,
+                    use_reentrant=False,
+                )
+            else:
+                x = self._forward_block(x, edge_index, conv, norm, use_dropout)
 
         pooled = torch.cat(
             [global_mean_pool(x, graph_batch), global_max_pool(x, graph_batch)],

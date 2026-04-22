@@ -19,7 +19,11 @@ from torch.utils.data import DataLoader, random_split
 
 from text_encoder import TextEncoder
 from graph_model import GraphPlanEncoder
-from pair_dataset import PairedDataset, paired_collate_fn
+from pair_dataset import (
+    BalancedCategoryBatchSampler,
+    PairedDataset,
+    paired_collate_fn,
+)
 
 
 # ── Loss ─────────────────────────────────────────────────────────────────────
@@ -105,11 +109,18 @@ def train(args):
         dataset, [n_train, n_val], generator=torch.Generator().manual_seed(42)
     )
 
+    # Keep train batches balanced across scale buckets to force within-category
+    # discrimination and avoid collapse to generic "commercial" embeddings.
+    train_pairs = [dataset.pairs[i] for i in train_set.indices]
+    train_batch_sampler = BalancedCategoryBatchSampler(
+        pairs=train_pairs,
+        batch_size=args.batch_size,
+        drop_last=True,
+    )
+
     train_loader = DataLoader(
         train_set,
-        batch_size=args.batch_size,
-        shuffle=True,
-        drop_last=True,
+        batch_sampler=train_batch_sampler,
         collate_fn=paired_collate_fn,
         num_workers=args.num_workers,
     )
@@ -122,6 +133,12 @@ def train(args):
         num_workers=args.num_workers,
     )
     print(f"Train pairs: {n_train}, Val pairs: {n_val}")
+    print(
+        "Train sampler: BalancedCategoryBatchSampler "
+        f"(categories={train_batch_sampler.n_categories}, "
+        f"per_cat={train_batch_sampler.per_cat}, "
+        f"effective_batch={train_batch_sampler.effective_batch})"
+    )
 
     logit_scale = torch.nn.Parameter(
         torch.log(torch.tensor(1.0 / args.temperature, device=device))

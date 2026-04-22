@@ -1,15 +1,22 @@
 import argparse
 import json
+import os
+import random
 import time
 from pathlib import Path
-from typing import List
+from typing import Iterable, List
 
 import torch
 import torch.nn as nn
 from torch import amp
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, Sampler
 
-from graph_dataset import BucketBatchSampler, build_cache, create_or_load_split, load_cache
+from graph_dataset import (
+    BucketBatchSampler,
+    build_cache_from_dirs,
+    graph_label_from_semantics,
+    load_cache,
+)
 from graph_model import GraphPlanEncoder
 
 try:
@@ -27,14 +34,6 @@ def pick_device():
     if torch.backends.mps.is_available():
         return torch.device("mps")
     return torch.device("cpu")
-
-
-def graph_label_from_semantics(semantic_ids: torch.Tensor, unknown_value: int = 0) -> int:
-    valid = semantic_ids[semantic_ids >= 0]
-    if valid.numel() == 0:
-        return unknown_value
-    values, counts = valid.unique(return_counts=True)
-    return int(values[counts.argmax()].item()) + 1  # +1 to keep 0 for unknown
 
 
 class CachedGraphDataset(Dataset):
@@ -56,13 +55,97 @@ class CachedGraphDataset(Dataset):
         label = record.graph_label
         if label is None:
             label = graph_label_from_semantics(data.semantic_ids)
-        data.y = torch.tensor([int(label)], dtype=torch.long)
+        label = max(0, int(label))
+        data.y = torch.tensor([label], dtype=torch.long)
         return data
 
 
-def make_loader(records, subset_indices, batch_size, shuffle, num_workers, use_cuda):
+class NodeBudgetBatchSampler(Sampler[List[int]]):
+    """
+    Batches graphs by a node budget to avoid CUDA OOM spikes from large graphs.
+    """
+
+    def __init__(
+        self,
+        records,
+        indices,
+        max_graphs_per_batch,
+        max_nodes_per_batch,
+        shuffle,
+    ):
+        self.records = records
+        self.indices = list(indices)
+        self.max_graphs_per_batch = max(1, int(max_graphs_per_batch))
+        self.max_nodes_per_batch = max(1, int(max_nodes_per_batch))
+        self.shuffle = bool(shuffle)
+
+    def _build_batches(self, order: List[int]) -> List[List[int]]:
+        batches: List[List[int]] = []
+        current: List[int] = []
+        current_nodes = 0
+        for idx in order:
+            nodes = max(1, int(self.records[idx].num_nodes))
+            # Always keep single oversized graphs in their own batch.
+            if nodes >= self.max_nodes_per_batch:
+                if current:
+                    batches.append(current)
+                    current = []
+                    current_nodes = 0
+                batches.append([idx])
+                continue
+
+            would_exceed_graphs = len(current) >= self.max_graphs_per_batch
+            would_exceed_nodes = (current_nodes + nodes) > self.max_nodes_per_batch
+            if current and (would_exceed_graphs or would_exceed_nodes):
+                batches.append(current)
+                current = [idx]
+                current_nodes = nodes
+            else:
+                current.append(idx)
+                current_nodes += nodes
+
+        if current:
+            batches.append(current)
+        return batches
+
+    def __iter__(self) -> Iterable[List[int]]:
+        ordered = sorted(self.indices, key=lambda idx: self.records[idx].num_nodes)
+        if not ordered:
+            return
+
+        batches = self._build_batches(ordered)
+        if self.shuffle:
+            random.shuffle(batches)
+        for batch in batches:
+            yield batch
+
+    def __len__(self) -> int:
+        if not self.indices:
+            return 0
+        ordered = sorted(self.indices, key=lambda idx: self.records[idx].num_nodes)
+        return len(self._build_batches(ordered))
+
+
+def make_loader(
+    records,
+    subset_indices,
+    batch_size,
+    max_nodes_per_batch,
+    shuffle,
+    num_workers,
+    use_cuda,
+):
     dataset = CachedGraphDataset(records)
-    sampler = BucketBatchSampler(records, subset_indices, batch_size=batch_size, shuffle=shuffle)
+    if max_nodes_per_batch > 0:
+        sampler = NodeBudgetBatchSampler(
+            records,
+            subset_indices,
+            max_graphs_per_batch=batch_size,
+            max_nodes_per_batch=max_nodes_per_batch,
+            shuffle=shuffle,
+        )
+    else:
+        sampler = BucketBatchSampler(records, subset_indices, batch_size=batch_size, shuffle=shuffle)
     return DataLoader(
         dataset,
         batch_sampler=sampler,
@@ -80,14 +163,23 @@ def evaluate(encoder, classifier, loader, device, criterion, use_cuda):
     correct = 0
     with torch.no_grad():
         for batch in loader:
-            batch = batch.to(device, non_blocking=use_cuda)
-            with amp.autocast(device_type="cuda", enabled=use_cuda):
-                logits = classifier(encoder(batch))
-                loss = criterion(logits, batch.y)
-            total_loss += loss.item() * int(batch.num_graphs)
-            preds = logits.argmax(dim=-1)
-            correct += int((preds == batch.y).sum().item())
-            total += int(batch.num_graphs)
+            try:
+                batch = batch.to(device, non_blocking=use_cuda)
+                with amp.autocast(device_type="cuda", enabled=use_cuda):
+                    logits = classifier(encoder(batch))
+                    loss = criterion(logits, batch.y)
+                total_loss += loss.item() * int(batch.num_graphs)
+                preds = logits.argmax(dim=-1)
+                correct += int((preds == batch.y).sum().item())
+                total += int(batch.num_graphs)
+            except torch.OutOfMemoryError as oom:
+                if use_cuda:
+                    torch.cuda.empty_cache()
+                print(
+                    f"  OOM during eval. Skipping batch. Details: {oom}",
+                    flush=True,
+                )
+                continue
     return total_loss / max(total, 1), correct / max(total, 1)
 
 
@@ -112,11 +204,21 @@ def format_seconds(seconds: float) -> str:
 def main():
     parser = argparse.ArgumentParser(description="Train Person 2 GNN baseline")
     parser.add_argument("--train-dir", default="../train")
-    parser.add_argument("--cache-path", default="artifacts/cache/graph_cache.pt")
+    parser.add_argument("--test-dir", default="../test")
+    parser.add_argument("--cache-path", default="artifacts/cache/graph_cache_train_test.pt")
     parser.add_argument("--cache-stats-path", default="artifacts/cache/cache_stats.json")
-    parser.add_argument("--split-path", default="artifacts/splits/train_val_test_split.json")
     parser.add_argument("--run-dir", default="artifacts/runs/graph_baseline")
     parser.add_argument("--batch-size", type=int, default=8)
+    parser.add_argument(
+        "--max-nodes-per-batch",
+        type=int,
+        default=3500,
+        help=(
+            "Node budget per mini-batch. "
+            "Set <=0 to disable and fall back to fixed graph-count batching."
+        ),
+    )
+    parser.add_argument("--max-graphs-in-memory", type=int, default=200)
     parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--hidden-dim", type=int, default=128)
     parser.add_argument("--out-dim", type=int, default=256)
@@ -127,29 +229,115 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--max-graphs", type=int, default=0)
     parser.add_argument("--conv-type", choices=["sage", "gcn"], default="sage")
+    parser.add_argument("--num-layers", type=int, default=3)
+    parser.add_argument("--use-gradient-checkpointing", action="store_true")
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--log-every", type=int, default=10)
+    parser.add_argument("--rebuild-cache", action="store_true")
+    parser.add_argument(
+        "--val-from-train-ratio",
+        type=float,
+        default=0.2,
+        help=(
+            "Fraction of records from --train-dir used as validation set; "
+            "remainder is used for training"
+        ),
+    )
+    parser.add_argument(
+        "--val-from-test-ratio",
+        type=float,
+        default=None,
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--split-seed",
+        type=int,
+        default=42,
+        help="Seed for deterministic train/val split inside --train-dir",
+    )
     args = parser.parse_args()
+
+    if args.val_from_test_ratio is not None:
+        print(
+            "--val-from-test-ratio is deprecated. "
+            "Use --val-from-train-ratio instead.",
+            flush=True,
+        )
+        args.val_from_train_ratio = float(args.val_from_test_ratio)
+
+    if not 0.0 < args.val_from_train_ratio < 1.0:
+        raise ValueError("--val-from-train-ratio must be in (0, 1)")
+
+    if "PYTORCH_CUDA_ALLOC_CONF" not in os.environ:
+        os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
     torch.manual_seed(args.seed)
     run_dir = Path(args.run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
 
     cache_path = Path(args.cache_path)
-    if not cache_path.exists():
-        print("Building PyG cache...")
-        build_cache(args.train_dir, args.cache_path, args.cache_stats_path)
+    if args.rebuild_cache and cache_path.exists():
+        cache_path.unlink()
+
+    if args.rebuild_cache or not cache_path.exists():
+        print("Building combined PyG cache from train+test...")
+        build_cache_from_dirs(
+            input_dirs=[args.train_dir, args.test_dir],
+            cache_path=args.cache_path,
+            stats_path=args.cache_stats_path,
+        )
+
     records, _ = load_cache(args.cache_path)
     if args.max_graphs > 0:
         records = records[:args.max_graphs]
 
-    split = create_or_load_split(records, args.split_path, seed=args.seed)
-    train_idx, val_idx, test_idx = split["train"], split["val"], split["test"]
-    if args.max_graphs > 0:
-        keep = set(range(len(records)))
-        train_idx = [i for i in train_idx if i in keep]
-        val_idx = [i for i in val_idx if i in keep]
-        test_idx = [i for i in test_idx if i in keep]
+    train_root = Path(args.train_dir).resolve()
+    test_root = Path(args.test_dir).resolve()
+    train_idx = []
+    test_idx = []
+    for idx, record in enumerate(records):
+        source = Path(record.source_json)
+        try:
+            resolved = source.resolve()
+        except FileNotFoundError:
+            resolved = source
+
+        if train_root in resolved.parents:
+            train_idx.append(idx)
+        elif test_root in resolved.parents:
+            test_idx.append(idx)
+
+    if not train_idx:
+        raise RuntimeError("No train records found in cache. Check --train-dir and cache content.")
+    if not test_idx:
+        raise RuntimeError("No test records found in cache. Check --test-dir and cache content.")
+
+    rng = random.Random(args.split_seed)
+    shuffled_train = list(train_idx)
+    rng.shuffle(shuffled_train)
+    val_size = int(len(shuffled_train) * args.val_from_train_ratio)
+    val_size = max(1, min(val_size, len(shuffled_train) - 1))
+
+    val_idx = shuffled_train[:val_size]
+    train_idx = shuffled_train[val_size:]
+
+    print(
+        f"Split train-dir records into train/val: {len(train_idx)}/{len(val_idx)} "
+        f"(val_ratio={args.val_from_train_ratio}, seed={args.split_seed})",
+        flush=True,
+    )
+    print(
+        f"Using test-dir records only for test: {len(test_idx)}",
+        flush=True,
+    )
+
+    effective_batch_size = min(args.batch_size, args.max_graphs_in_memory)
+    if effective_batch_size != args.batch_size:
+        print(
+            f"Capping batch size from {args.batch_size} to {effective_batch_size} "
+            f"to respect max-graphs-in-memory={args.max_graphs_in_memory}",
+            flush=True,
+        )
 
     device = pick_device()
     use_cuda = device.type == "cuda"
@@ -164,7 +352,8 @@ def main():
     train_loader = make_loader(
         records,
         train_idx,
-        args.batch_size,
+        effective_batch_size,
+        args.max_nodes_per_batch,
         shuffle=True,
         num_workers=args.num_workers,
         use_cuda=use_cuda,
@@ -172,7 +361,8 @@ def main():
     val_loader = make_loader(
         records,
         val_idx,
-        args.batch_size,
+        effective_batch_size,
+        args.max_nodes_per_batch,
         shuffle=False,
         num_workers=args.num_workers,
         use_cuda=use_cuda,
@@ -180,7 +370,8 @@ def main():
     test_loader = make_loader(
         records,
         test_idx,
-        args.batch_size,
+        effective_batch_size,
+        args.max_nodes_per_batch,
         shuffle=False,
         num_workers=args.num_workers,
         use_cuda=use_cuda,
@@ -198,8 +389,18 @@ def main():
         out_dim=args.out_dim,
         dropout=args.dropout,
         conv_type=args.conv_type,
+        num_layers=args.num_layers,
+        use_gradient_checkpointing=args.use_gradient_checkpointing,
     ).to(device)
-    num_classes = 37  # 0 unknown + semantic IDs 0..35
+
+    observed_labels = [
+        int(record.graph_label)
+        for record in records
+        if hasattr(record, "graph_label") and record.graph_label is not None
+    ]
+    max_label = max(observed_labels) if observed_labels else 0
+    num_classes = max(2, max_label + 1)
+
     classifier = nn.Linear(args.out_dim, num_classes).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.AdamW(
@@ -225,17 +426,28 @@ def main():
         print(f"Epoch {epoch:02d}/{args.epochs} started | train_batches={num_batches}")
 
         for batch_idx, batch in enumerate(train_loader, start=1):
-            batch = batch.to(device, non_blocking=use_cuda)
-            optimizer.zero_grad(set_to_none=True)
-            with amp.autocast(device_type="cuda", enabled=use_cuda):
-                embedding = model(batch)
-                logits = classifier(embedding)
-                loss = criterion(logits, batch.y)
-            scaler.scale(loss).backward()
-            scaler.step(optimizer)
-            scaler.update()
-            running_loss += loss.item() * int(batch.num_graphs)
-            total_graphs += int(batch.num_graphs)
+            try:
+                batch = batch.to(device, non_blocking=use_cuda)
+                optimizer.zero_grad(set_to_none=True)
+                with amp.autocast(device_type="cuda", enabled=use_cuda):
+                    embedding = model(batch)
+                    logits = classifier(embedding)
+                    loss = criterion(logits, batch.y)
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+                running_loss += loss.item() * int(batch.num_graphs)
+                total_graphs += int(batch.num_graphs)
+            except torch.OutOfMemoryError as oom:
+                if use_cuda:
+                    optimizer.zero_grad(set_to_none=True)
+                    torch.cuda.empty_cache()
+                print(
+                    f"  OOM at train batch {batch_idx}/{num_batches}. "
+                    f"Skipping batch and continuing. Details: {oom}",
+                    flush=True,
+                )
+                continue
             if (
                 batch_idx == 1
                 or batch_idx == num_batches
@@ -322,6 +534,14 @@ def main():
         "mixed_precision": bool(use_cuda),
         "num_graphs": len(records),
         "split_sizes": {"train": len(train_idx), "val": len(val_idx), "test": len(test_idx)},
+        "train_dir": str(Path(args.train_dir).resolve()),
+        "test_dir": str(Path(args.test_dir).resolve()),
+        "val_from_train_ratio": float(args.val_from_train_ratio),
+        "split_seed": int(args.split_seed),
+        "effective_batch_size": int(effective_batch_size),
+        "max_nodes_per_batch": int(args.max_nodes_per_batch),
+        "max_graphs_in_memory": int(args.max_graphs_in_memory),
+        "num_classes": int(num_classes),
         "best_epoch": best_epoch,
         "best_val_loss": best_val,
         "test_loss": test_loss,

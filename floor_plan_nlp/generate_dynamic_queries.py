@@ -1,5 +1,6 @@
 import argparse
 import json
+import random
 from pathlib import Path
 
 
@@ -110,20 +111,25 @@ def clean_adjacency_text(adjacency):
     return humanize_label(adjacency)
 
 
-def build_query_text(density, inventory, adjacencies):
+def build_query_text(density, inventory, adjacencies, rng):
     inventory_text = format_inventory(inventory)
-    query = f"This is a {density} layout featuring {inventory_text}."
-
     cleaned_adjacencies = [clean_adjacency_text(item) for item in adjacencies[:2]]
+    adjacency_clause = ""
     if len(cleaned_adjacencies) == 1:
-        query += f" Spatially, the {cleaned_adjacencies[0]}."
+        adjacency_clause = f" Spatially, the {cleaned_adjacencies[0]}."
     elif len(cleaned_adjacencies) == 2:
-        query += (
+        adjacency_clause = (
             f" Spatially, the {cleaned_adjacencies[0]}, "
             f"and the {cleaned_adjacencies[1]}."
         )
 
-    return query
+    templates = [
+        f"This is a {density} layout featuring {inventory_text}.{adjacency_clause}",
+        f"A {density} floor plan with {inventory_text}.{adjacency_clause}",
+        f"In this {density} plan, you can find {inventory_text}.{adjacency_clause}",
+        f"The drawing shows a {density} arrangement containing {inventory_text}.{adjacency_clause}",
+    ]
+    return rng.choice(templates)
 
 
 def scale_bucket(inventory):
@@ -147,9 +153,10 @@ def scale_bucket(inventory):
     return 3
 
 
-def generate_pairs(attributes_path, output_path):
+def generate_pairs(attributes_path, output_path, seed=42):
     attributes = json.loads(Path(attributes_path).read_text(encoding="utf-8"))
     print(f"Loaded {len(attributes)} attribute records from {attributes_path}")
+    rng = random.Random(seed)
 
     pairs = []
     bucket_counts = {0: 0, 1: 0, 2: 0, 3: 0}
@@ -164,6 +171,7 @@ def generate_pairs(attributes_path, output_path):
             density=density,
             inventory=inventory,
             adjacencies=adjacencies,
+            rng=rng,
         )
         bucket = scale_bucket(inventory)
         bucket_counts[bucket] = bucket_counts.get(bucket, 0) + 1
@@ -185,6 +193,7 @@ def generate_pairs(attributes_path, output_path):
     Path(output_path).write_text(json.dumps(pairs, indent=2), encoding="utf-8")
     print(f"Saved {len(pairs)} pairs to {output_path}")
     print(f"Scale bucket distribution: {bucket_counts}")
+    print(f"Template sampling seed: {seed}")
     return pairs
 
 
@@ -202,9 +211,19 @@ def parse_args():
         default="pairs.json",
         help="Path to write pairs JSON",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed for template sampling",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    generate_pairs(attributes_path=args.attributes_path, output_path=args.output_path)
+    generate_pairs(
+        attributes_path=args.attributes_path,
+        output_path=args.output_path,
+        seed=args.seed,
+    )

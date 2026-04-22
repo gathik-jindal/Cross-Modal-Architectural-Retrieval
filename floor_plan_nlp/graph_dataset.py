@@ -40,6 +40,23 @@ def _safe_float(value, default=0.0):
         return float(default)
 
 
+def _safe_int(value, default=-1):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return int(default)
+
+
+def _iter_contract_paths(input_dirs: Sequence[str]) -> List[Path]:
+    paths: List[Path] = []
+    for input_dir in input_dirs:
+        root = Path(input_dir)
+        if not root.exists():
+            continue
+        paths.extend(sorted(root.glob("*_contract.json")))
+    return paths
+
+
 def _collect_category_maps(json_paths: Sequence[Path], skipped_files: List[str]) -> Dict[str, Dict[str, int]]:
     layer_vocab = {"UNK": 0}
     geo_vocab = {"other": 0}
@@ -79,7 +96,13 @@ def contract_json_to_pyg(path: Path, category_maps: Dict[str, Dict[str, int]]) -
     nodes = payload.get("nodes", [])
     edges = payload.get("edges", [])
 
-    id_to_idx = {node["id"]: idx for idx, node in enumerate(nodes)}
+    id_to_idx = {}
+    for idx, node in enumerate(nodes):
+        node_id = node.get("id")
+        if node_id is None:
+            continue
+        id_to_idx[str(node_id)] = idx
+
     layer_vocab = category_maps["layer_vocab"]
     geo_vocab = category_maps["geo_vocab"]
 
@@ -97,8 +120,8 @@ def contract_json_to_pyg(path: Path, category_maps: Dict[str, Dict[str, int]]) -
         layer_id = layer_vocab.get(layer_name, 0)
         geo_name = str(node.get("geometry_type", "other"))
         geo_id = geo_vocab.get(geo_name, 0)
-        instance_flag = 1.0 if int(node.get("instance_id", -1)) != -1 else 0.0
-        semantic_id = int(node.get("semantic_id", -1))
+        instance_flag = 1.0 if _safe_int(node.get("instance_id", -1), default=-1) != -1 else 0.0
+        semantic_id = _safe_int(node.get("semantic_id", -1), default=-1)
 
         numeric_features = [
             _safe_float(feats.get("length", 0.0)),
@@ -124,8 +147,8 @@ def contract_json_to_pyg(path: Path, category_maps: Dict[str, Dict[str, int]]) -
     edge_index_rows = [[], []]
     edge_attr_rows = []
     for edge in edges:
-        src = id_to_idx.get(edge.get("source"))
-        dst = id_to_idx.get(edge.get("target"))
+        src = id_to_idx.get(str(edge.get("source")))
+        dst = id_to_idx.get(str(edge.get("target")))
         if src is None or dst is None:
             continue
         relation_name = str(edge.get("relation", "adjacent"))
@@ -149,7 +172,11 @@ def contract_json_to_pyg(path: Path, category_maps: Dict[str, Dict[str, int]]) -
 
     x = torch.tensor(x_rows, dtype=torch.float32)
     semantic_ids = torch.tensor(node_semantic_id if node_semantic_id else [-1], dtype=torch.long)
-    floor_plan_id = payload.get("metadata", {}).get("filename", path.stem.replace("_contract", ""))
+    metadata_filename = payload.get("metadata", {}).get("filename")
+    if isinstance(metadata_filename, str) and metadata_filename.strip():
+        floor_plan_id = Path(metadata_filename).stem
+    else:
+        floor_plan_id = path.stem.replace("_contract", "")
     data = Data(
         x=x,
         edge_index=edge_index,
@@ -172,8 +199,7 @@ def build_cache(
     cache_path: str,
     stats_path: str,
 ) -> None:
-    train_root = Path(train_dir)
-    json_paths = sorted(train_root.glob("*_contract.json"))
+    json_paths = _iter_contract_paths([train_dir])
     if not json_paths:
         raise FileNotFoundError(f"No *_contract.json files found under {train_dir}")
 
@@ -243,6 +269,87 @@ def build_cache(
         "geo_vocab_size": len(maps["geo_vocab"]),
         "feature_dim": feature_dim,
         "skipped_corrupt_files": skipped_files,
+    }
+    Path(stats_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(stats_path).write_text(json.dumps(stats, indent=2), encoding="utf-8")
+
+
+def build_cache_from_dirs(
+    input_dirs: Sequence[str],
+    cache_path: str,
+    stats_path: str,
+) -> None:
+    json_paths = _iter_contract_paths(input_dirs)
+    if not json_paths:
+        raise FileNotFoundError(f"No *_contract.json files found under {list(input_dirs)}")
+
+    skipped_files: List[str] = []
+    maps = _collect_category_maps(json_paths, skipped_files)
+    cache_file = Path(cache_path)
+    graph_dir = cache_file.parent / "graphs"
+    graph_dir.mkdir(parents=True, exist_ok=True)
+
+    records: List[GraphRecord] = []
+    valid_count = 0
+    total_count = len(json_paths)
+    for file_idx, path in enumerate(json_paths, start=1):
+        if path.name in skipped_files:
+            continue
+        try:
+            record = contract_json_to_pyg(path, maps)
+        except json.JSONDecodeError:
+            skipped_files.append(path.name)
+            continue
+
+        graph_name = f"graph_{valid_count:06d}.pt"
+        graph_path = graph_dir / graph_name
+        torch.save(record.data, graph_path)
+        records.append(
+            GraphRecord(
+                data=None,
+                floor_plan_id=record.floor_plan_id,
+                source_json=record.source_json,
+                num_nodes=record.num_nodes,
+                graph_path=str(graph_path),
+                graph_label=record.graph_label,
+            )
+        )
+        valid_count += 1
+
+        if file_idx == 1 or file_idx == total_count or file_idx % 200 == 0:
+            print(f"Cache build {file_idx}/{total_count} | valid={valid_count} skipped={len(skipped_files)}", flush=True)
+
+    if not records:
+        raise RuntimeError("No valid JSON contracts available after filtering malformed files.")
+    cache_payload = {
+        "records": records,
+        "category_maps": maps,
+        "cache_format": "lazy_v2",
+    }
+    cache_file.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(cache_payload, cache_file)
+
+    node_counts = [record.num_nodes for record in records]
+    first_record = records[0]
+    if first_record.data is not None:
+        feature_dim = int(first_record.data.x.shape[1])
+    elif first_record.graph_path:
+        first_graph = torch.load(first_record.graph_path, map_location="cpu", weights_only=False)
+        feature_dim = int(first_graph.x.shape[1])
+    else:
+        raise RuntimeError("Unable to determine feature_dim from cache records")
+
+    stats = {
+        "num_graphs": len(records),
+        "node_count_min": min(node_counts),
+        "node_count_max": max(node_counts),
+        "node_count_median": sorted(node_counts)[len(node_counts) // 2],
+        "relation_to_id": RELATION_TO_ID,
+        "layer_vocab_size": len(maps["layer_vocab"]),
+        "geo_vocab_size": len(maps["geo_vocab"]),
+        "feature_dim": feature_dim,
+        "skipped_corrupt_files": skipped_files,
+        "input_dirs": list(input_dirs),
     }
     Path(stats_path).parent.mkdir(parents=True, exist_ok=True)
     Path(stats_path).write_text(json.dumps(stats, indent=2), encoding="utf-8")

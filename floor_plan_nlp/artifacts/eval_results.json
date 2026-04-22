@@ -1,23 +1,23 @@
 {
   "n_queries": 200,
-  "n_index": 4265,
+  "n_index": 6000,
   "evaluation": "exact_floor_plan_id_match",
   "checkpoint": "artifacts/runs/alignment/best_alignment_checkpoint.pt",
   "metrics": {
-    "recall@1": 0.035,
-    "recall@5": 0.195,
-    "recall@10": 0.32
+    "recall@1": 0.02,
+    "recall@5": 0.045,
+    "recall@10": 0.07
   },
-  "mrr": 0.10783531746031746,
+  "mrr": 0.031394841269841274,
   "random_baseline": {
-    "recall@1": 0.00023446658851113716,
-    "recall@5": 0.0011723329425556857,
-    "recall@10": 0.0023446658851113715
+    "recall@1": 0.00016666666666666666,
+    "recall@5": 0.0008333333333333334,
+    "recall@10": 0.0016666666666666668
   },
   "per_bucket_recall5": {
-    "0": 0.16,
-    "1": 0.16,
-    "2": 0.2,
-    "3": 0.26
+    "0": 0.006211180124223602,
+    "1": 0.25,
+    "2": 0.4166666666666667,
+    "3": 0.0
   }
 }

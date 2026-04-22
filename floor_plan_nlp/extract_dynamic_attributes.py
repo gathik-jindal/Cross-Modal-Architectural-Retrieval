@@ -12,11 +12,22 @@ ADJACENCY_IGNORE_LABELS = {"wall", "window", "dimension", "room_text"}
 # Does NOT rename or transform valid labels — that would break graph alignment.
 _CAD_GARBAGE_RE = re.compile(
     r"""
-    \$              # dollar signs (CAD layer code separator)
-    | \#            # hash (CAD reference marker)
+    [$]             # literal dollar signs (CAD layer code separator)
+    | [#]           # literal hash (CAD reference marker)
     | \d{4,}\s*x\s  # "18014 x" style dimension strings
     | ^lf           # starts with CAD "lf" prefix
     | ^p\d          # starts with CAD parameter "p0", "p1" etc
+    | ^a[-_]        # a-* CAD categories (a-roof-dran, a-colu-conc, ...)
+    | ^knot[-_]     # knot-* layers
+    | ^0[-_]        # zero-prefixed CAD pseudo labels
+    | ^s[-_]        # s-* symbolic layers
+    | ^m[-_]        # m-* mechanical/meta layers
+    | ^dim[-_]      # dim_symb, dim_line, etc
+    | symb          # symbol-heavy layer names (dim symb, ann symb)
+    | \[|\]        # bracketed CAD fragments
+    | ^vpipe        # vertical pipe shorthand labels
+    | ^equip[-_]    # equipment layer prefixes
+    | (?:[^\s]+[-_]){2,}[^\s]+  # dense hyphen/underscore CAD codes
     """,
     re.VERBOSE | re.IGNORECASE,
 )
@@ -133,10 +144,13 @@ def build_plan_attributes(train_dir, output_path):
     print(f"Found {len(contract_paths)} files")
 
     results = []
-    skipped_garbage = 0
+    skipped_low_signal = 0
     for idx, contract_path in enumerate(contract_paths, start=1):
         try:
             record = extract_attributes_for_file(contract_path)
+            if len(record["inventory"]) < 2:
+                skipped_low_signal += 1
+                continue
             results.append(record)
         except Exception as exc:
             print(f"[WARN] Skipping {contract_path}: {exc}")
@@ -148,6 +162,7 @@ def build_plan_attributes(train_dir, output_path):
     output = Path(output_path)
     output.write_text(json.dumps(results, indent=2), encoding="utf-8")
     print(f"Saved {len(results)} records to {output}")
+    print(f"Skipped {skipped_low_signal} low-signal plans (<2 clean labels)")
     return results
 
 

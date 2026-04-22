@@ -1,0 +1,19 @@
+{
+  "num_graphs": 6000,
+  "node_count_min": 4,
+  "node_count_max": 27279,
+  "node_count_median": 379,
+  "relation_to_id": {
+    "adjacent": 0,
+    "same_layer_adjacent": 1,
+    "wall_window": 2
+  },
+  "layer_vocab_size": 4757,
+  "geo_vocab_size": 6,
+  "feature_dim": 4779,
+  "skipped_corrupt_files": [],
+  "input_dirs": [
+    "../train",
+    "../test"
+  ]
+}
