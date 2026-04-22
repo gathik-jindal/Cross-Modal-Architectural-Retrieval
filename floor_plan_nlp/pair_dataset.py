@@ -22,7 +22,7 @@ from graph_dataset import contract_json_to_pyg, load_cache
 
 class PairedDataset(Dataset):
     """
-    Each item: {"query": str, "graph": PyG Data object, "bedroom_count": int}
+    Each item: {"query": str, "graph": PyG Data object, "scale_bucket": int}
 
     The graph is loaded lazily from the contract JSON path stored in pairs.json.
     If a graph_cache.pt is available from Person 2, loading is faster.
@@ -116,10 +116,11 @@ class PairedDataset(Dataset):
         pair = self.pairs[idx]
         query = pair["query"]
         graph_path = pair["graph_path"]
-        bedroom_count = pair.get("bedroom_count", -1)
+        # Backward compatibility: older pairs.json used "bedroom_count".
+        scale_bucket = pair.get("scale_bucket", pair.get("bedroom_count", -1))
 
         graph = self._load_graph(graph_path)
-        return {"query": query, "graph": graph, "bedroom_count": bedroom_count}
+        return {"query": query, "graph": graph, "scale_bucket": scale_bucket}
 
 
 def paired_collate_fn(batch: List[Dict]) -> Dict:
@@ -128,19 +129,19 @@ def paired_collate_fn(batch: List[Dict]) -> Dict:
     """
     queries = [item["query"] for item in batch]
     graphs = Batch.from_data_list([item["graph"] for item in batch])
-    bedroom_counts = torch.tensor(
-        [item["bedroom_count"] for item in batch], dtype=torch.long
+    scale_buckets = torch.tensor(
+        [item["scale_bucket"] for item in batch], dtype=torch.long
     )
     return {
         "queries": queries,
         "graphs": graphs,
-        "bedroom_counts": bedroom_counts,
+        "scale_buckets": scale_buckets,
     }
 
 
 class BalancedCategoryBatchSampler(Sampler):
     """
-    Produces batches where each bedroom category (0-4) is equally represented.
+    Produces batches where each scale category (0-3) is equally represented.
     Forces the model to learn hard within-category distinctions, not just
     easy commercial vs residential separation.
     """
@@ -152,7 +153,8 @@ class BalancedCategoryBatchSampler(Sampler):
 
         self.by_category = defaultdict(list)
         for idx, pair in enumerate(pairs):
-            self.by_category[pair.get("bedroom_count", -1)].append(idx)
+            bucket = pair.get("scale_bucket", pair.get("bedroom_count", -1))
+            self.by_category[bucket].append(idx)
 
         self.categories = sorted(self.by_category.keys())
         self.n_categories = len(self.categories)

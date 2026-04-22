@@ -33,12 +33,17 @@ def _norm_id(fid: str) -> str:
     return fid.removesuffix(".svg")
 
 
+def _get_scale_bucket(item, default=0):
+    """Read the canonical scale bucket with support for legacy pairs.json."""
+    return item.get("scale_bucket", item.get("bedroom_count", default))
+
+
 def create_eval_split(pairs, split_path, n_test=200, seed=99):
-    """Stratified split by bedroom_count bucket."""
+    """Stratified split by scale bucket."""
     rnd = random.Random(seed)
     strata = defaultdict(list)
     for i, p in enumerate(pairs):
-        strata[p.get("bedroom_count", 0)].append(i)
+        strata[_get_scale_bucket(p, 0)].append(i)
 
     test_indices = set()
     per_stratum = max(1, n_test // max(len(strata), 1))
@@ -73,7 +78,7 @@ def print_qualitative_examples(text_encoder, index, index_id_set, test_pairs, n_
     for i, item in enumerate(test_pairs[:n_examples]):
         query = preprocess_query(item["query"])
         correct_id = _norm_id(item["floor_plan_id"])
-        bucket = BUCKET_LABELS.get(item.get("bedroom_count", 0), "?")
+        bucket = BUCKET_LABELS.get(_get_scale_bucket(item, 0), "?")
         short_query = item["query"][:80] + "..."
 
         with torch.no_grad():
@@ -120,7 +125,7 @@ def evaluate(args):
 
     bucket_dist = defaultdict(int)
     for p in pairs:
-        bucket_dist[p.get("bedroom_count", 0)] += 1
+        bucket_dist[_get_scale_bucket(p, 0)] += 1
     print("  Scale bucket distribution:")
     for b in sorted(bucket_dist):
         print(f"    bucket {b} ({BUCKET_LABELS.get(b, '?')}): {bucket_dist[b]}")
@@ -153,7 +158,7 @@ def evaluate(args):
     for i, item in enumerate(test_pairs):
         query_text = preprocess_query(item["query"])
         correct_id = _norm_id(item["floor_plan_id"])
-        bucket = item.get("bedroom_count", 0)
+        bucket = _get_scale_bucket(item, 0)
 
         with torch.no_grad():
             q_vec = text_encoder([query_text])[0].numpy()

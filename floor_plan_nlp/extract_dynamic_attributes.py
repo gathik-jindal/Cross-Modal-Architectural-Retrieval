@@ -1,11 +1,35 @@
 import argparse
 import json
+import re
 from collections import Counter
 from pathlib import Path
 
 
 INVALID_LABELS = {"", "0", "-1"}
 ADJACENCY_IGNORE_LABELS = {"wall", "window", "dimension", "room_text"}
+
+# Blocks raw CAD layer/dimension strings that BERT cannot understand.
+# Does NOT rename or transform valid labels — that would break graph alignment.
+_CAD_GARBAGE_RE = re.compile(
+    r"""
+    \$              # dollar signs (CAD layer code separator)
+    | \#            # hash (CAD reference marker)
+    | \d{4,}\s*x\s  # "18014 x" style dimension strings
+    | ^lf           # starts with CAD "lf" prefix
+    | ^p\d          # starts with CAD parameter "p0", "p1" etc
+    """,
+    re.VERBOSE | re.IGNORECASE,
+)
+
+_MAX_LABEL_CHARS = 40  # garbage labels are usually very long
+
+
+def is_garbage_label(label: str) -> bool:
+    if len(label) > _MAX_LABEL_CHARS:
+        return True
+    if _CAD_GARBAGE_RE.search(label):
+        return True
+    return False
 
 
 def normalize_label(raw_label):
@@ -14,6 +38,10 @@ def normalize_label(raw_label):
     label = str(raw_label).strip()
     if label in INVALID_LABELS:
         return None
+    if is_garbage_label(label):
+        return None
+    # Return the label as-is. Do NOT rename or sanitize —
+    # the graph encoder was trained on these exact label strings.
     return label
 
 
@@ -82,10 +110,8 @@ def density_bucket(total_nodes):
 
 def extract_attributes_for_file(contract_path):
     data = json.loads(contract_path.read_text(encoding="utf-8"))
-
     nodes = data.get("nodes", [])
     edges = data.get("edges", [])
-
     inventory = extract_inventory(nodes)
     id_to_label = build_id_to_label(nodes)
     adjacencies = extract_adjacencies(edges, id_to_label)
@@ -107,6 +133,7 @@ def build_plan_attributes(train_dir, output_path):
     print(f"Found {len(contract_paths)} files")
 
     results = []
+    skipped_garbage = 0
     for idx, contract_path in enumerate(contract_paths, start=1):
         try:
             record = extract_attributes_for_file(contract_path)
@@ -120,7 +147,6 @@ def build_plan_attributes(train_dir, output_path):
 
     output = Path(output_path)
     output.write_text(json.dumps(results, indent=2), encoding="utf-8")
-
     print(f"Saved {len(results)} records to {output}")
     return results
 
@@ -129,16 +155,8 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Extract deterministic dynamic attributes from floor plan contract JSON files."
     )
-    parser.add_argument(
-        "--train-dir",
-        default="../train",
-        help="Directory containing *_contract.json files",
-    )
-    parser.add_argument(
-        "--output-path",
-        default="plan_attributes.json",
-        help="Path to write extracted plan attributes JSON",
-    )
+    parser.add_argument("--train-dir", default="../train")
+    parser.add_argument("--output-path", default="plan_attributes.json")
     return parser.parse_args()
 
 

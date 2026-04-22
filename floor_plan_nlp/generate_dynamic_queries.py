@@ -172,9 +172,9 @@ def generate_pairs(attributes_path, output_path):
             "query": query,
             "graph_path": source_json,
             "floor_plan_id": record.get("floor_plan_id"),
-            # bedroom_count now holds a scale bucket (0-3), not a capped raw count.
+            # scale_bucket stores the scale tier (0-3), not a raw bedroom count.
             # Real bed count is already embedded in the query text itself.
-            "bedroom_count": bucket,
+            "scale_bucket": bucket,
             "template_type": "dynamic",
         }
         pairs.append(pair)
