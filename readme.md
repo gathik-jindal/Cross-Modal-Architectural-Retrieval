@@ -1,199 +1,133 @@
 # Cross-Modal Architectural Retrieval
 
-This project processes floor plan SVG files and converts them into structured "contract" JSON representations for downstream NLP or retrieval tasks.
+Cross-modal retrieval pipeline for FloorPlanCAD-style floor plans, combining:
 
----
+- a graph encoder (GNN) over contract JSONs, and
+- a text encoder for natural-language floor plan queries.
 
-## 📁 Project Structure
+The objective is to place both modalities in a shared embedding space for retrieval.
 
+## Overview
+
+This repository contains two main branches:
+
+1. **Graph branch (plan geometry/structure)**
+   - Parses/consumes floor plan contract JSON files
+   - Trains a graph encoder
+   - Exports normalized plan embeddings
+
+2. **Text branch (user/query language)**
+   - Encodes query text into vectors
+   - Supports retrieval against exported plan embeddings
+
+## Core Files
+
+### Graph pipeline
+
+- `floor_plan_nlp/graph_dataset.py`  
+  Converts `*_contract.json` files into PyTorch Geometric graphs (`x`, `edge_index`, `edge_attr`), builds cache, and creates train/val/test splits.
+
+- `floor_plan_nlp/graph_model.py`  
+  Defines `GraphPlanEncoder` (GraphSAGE/GCN, pooling, projection, L2 normalization).
+
+- `floor_plan_nlp/train_graph_encoder.py`  
+  End-to-end training loop, validation, early stopping, and checkpoint/report saving.
+
+- `floor_plan_nlp/export_plan_embeddings.py`  
+  Loads best checkpoint, converts graphs into embeddings, exports `.npy/.pt`, and writes ID-row index mapping.
+
+- `floor_plan_nlp/retrieval_index.py`  
+  Lightweight cosine retrieval index over exported embeddings.
+
+### Upstream contract generation and schema
+
+- `src/svg_parser.py`  
+  SVG to contract JSON parser.
+
+- `src/constants.py`  
+  Semantic ID and layer mapping constants used during contract creation.
+
+- `schema.md`  
+  Contract schema (`metadata`, `nodes`, `edges`, `symbols`).
+
+## Expected Data Layout
+
+Current training scripts expect contract JSON files under:
+
+```text
+train/*_contract.json
 ```
-contracts/
-data/
-floor_plan_nlp/
-src/
-  ├── batch_runner.py
-  ├── constants.py
-  ├── geometry.py
-  ├── svg_parser.py
-```
 
-⚠️ **Note:**
+If you start from raw SVGs, generate contracts first using the parser pipeline in `src/`.
 
-- `data/` and `contracts/` are in `.gitignore`
-- You must generate these locally (see steps below)
-
----
-
-## 🚀 Setup Instructions
-
-### 1. Clone the Repository
+## Setup
 
 ```bash
-git clone <your-repo-url>
-cd <repo-name>
-```
-
----
-
-### 2. Install Dependencies
-
-Make sure you are using Python 3.8+.
-
-```bash
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-(Adjust if your project uses additional libraries.)
+## Train Graph Encoder
 
----
-
-## 📥 Download & Prepare Dataset
-
-This project uses the **Floor PlanCAD dataset**.
-
-### Steps:
-
-1. Download dataset from:
-   https://floorplancad.github.io/
-
-2. Create the following directory structure:
-
-```
-data/
-  ├── train/
-  └── test/
-```
-
-3. Place SVG files:
-
-- Training SVGs → `data/train/`
-- Testing SVGs → `data/test/`
-
----
-
-## ⚙️ Generate Contracts (Main Step)
-
-The `contracts/` folder is NOT included in the repo. It will be generated automatically.
-
-In `src/batch_runner.py` change the following variable to your convenience, if you want to run it on the full dataset, set it to `None`
-
-```python
-TEST_LIMIT = 5
-```
-
-### Run the batch processing script:
+Run from repository root:
 
 ```bash
-python src/batch_runner.py
+python floor_plan_nlp/train_graph_encoder.py \
+  --train-dir train \
+  --cache-path floor_plan_nlp/artifacts/cache/graph_cache.pt \
+  --cache-stats-path floor_plan_nlp/artifacts/cache/cache_stats.json \
+  --split-path floor_plan_nlp/artifacts/splits/train_val_test_split.json \
+  --run-dir floor_plan_nlp/artifacts/runs/graph_baseline
 ```
 
----
+Primary outputs:
 
-## 🔄 What This Script Does
+- `floor_plan_nlp/artifacts/runs/graph_baseline/best_checkpoint.pt`
+- `floor_plan_nlp/artifacts/runs/graph_baseline/train_report.json`
 
-The script :
-
-- Scans:
-  - `data/train/*.svg`
-  - `data/test/*.svg`
-
-- Converts each SVG into a structured JSON contract
-- Saves outputs to:
-
-  ```
-  contracts/
-    ├── train/
-    └── test/
-  ```
-
-- Uses parallel processing for speed
-
----
-
-## 📤 Output Structure
-
-After running the script:
-
-```
-contracts/
-  ├── train/
-  │     ├── file1.json
-  │     ├── file2.json
-  │     └── ...
-  └── test/
-        ├── file1.json
-        ├── file2.json
-        └── ...
-```
-
----
-
-## 🛠️ Troubleshooting
-
-### ❌ No SVG files found
-
-- Ensure files are placed correctly:
-
-  ```
-  data/train/*.svg
-  data/test/*.svg
-  ```
-
-### ❌ Import errors
-
-- Make sure you're running from project root:
-
-  ```bash
-  python src/batch_runner.py
-  ```
-
-### ❌ Slow performance
-
-- The script uses multiprocessing by default
-- You can modify `max_workers` inside `batch_runner.py` if needed
-
----
-
-## 🧠 Notes
-
-- The parser logic is implemented in:
-
-  ```
-  src/svg_parser.py
-  ```
-
-- Key parameters you can tweak:
-  - `epsilon`
-  - `max_edges_per_node`
-
----
-
-## ✅ Quick Start (TL;DR)
+## Export Plan Embeddings
 
 ```bash
-git clone <repo>
-cd <repo>
-pip install -r requirements.txt
-
-# Download dataset and place SVGs into:
-# data/train and data/test
-
-python src/batch_runner.py
+python floor_plan_nlp/export_plan_embeddings.py \
+  --cache-path floor_plan_nlp/artifacts/cache/graph_cache.pt \
+  --checkpoint-path floor_plan_nlp/artifacts/runs/graph_baseline/best_checkpoint.pt \
+  --out-dir floor_plan_nlp/artifacts/handoff
 ```
 
----
+Generated artifacts:
 
-## 📌 Summary
+- `floor_plan_nlp/artifacts/handoff/embeddings.npy`
+- `floor_plan_nlp/artifacts/handoff/embeddings.pt`
+- `floor_plan_nlp/artifacts/handoff/embedding_index.json`
+- `floor_plan_nlp/artifacts/handoff/handoff_summary.json`
 
-| Step | Action                      |
-| ---- | --------------------------- |
-| 1    | Clone repo                  |
-| 2    | Install dependencies        |
-| 3    | Download dataset            |
-| 4    | Place SVGs in `data/`       |
-| 5    | Run batch script            |
-| 6    | Get outputs in `contracts/` |
+## Retrieval
 
----
+Example self-retrieval/smoke retrieval:
 
-You're now ready to run the full pipeline 🚀
+```bash
+python floor_plan_nlp/retrieval_index.py \
+  --embeddings-path floor_plan_nlp/artifacts/handoff/embeddings.npy \
+  --index-path floor_plan_nlp/artifacts/handoff/embedding_index.json \
+  --query-floor-plan-id 0000-0002.svg \
+  --top-k 10
+```
+
+## Training Snapshot (Current Baseline)
+
+From `floor_plan_nlp/artifacts/runs/graph_baseline/train_report.json`:
+
+- Graphs: `4265`
+- Split sizes: train `3412`, val `426`, test `427`
+- Best epoch: `10`
+- Best val loss: `0.9961`
+- Test accuracy: `0.6885`
+
+## Notes on Query Quality
+
+For stable cross-modal performance, text queries should be generated from actual dataset facts (contract JSON semantics and structure), not random synthetic combinations. Misaligned query generation can significantly degrade retrieval quality even when the graph encoder is trained correctly.
+
+## Dataset Reference
+
+- FloorPlanCAD: <https://floorplancad.github.io/>
