@@ -8,8 +8,14 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from graph_dataset import load_cache, contract_json_to_pyg
-from graph_model import GraphPlanEncoder
+if __package__:
+    from .graph_dataset import load_cache, contract_json_to_pyg
+    from .graph_model import GraphPlanEncoder
+else:  # pragma: no cover - direct script execution
+    from graph_dataset import load_cache, contract_json_to_pyg
+    from graph_model import GraphPlanEncoder
+
+PACKAGE_DIR = Path(__file__).resolve().parent
 
 try:
     from torch_geometric.data import Batch
@@ -117,9 +123,15 @@ class CachedGraphDataset(Dataset):
 
 def main():
     parser = argparse.ArgumentParser(description="Export plan embeddings for Person 4")
-    parser.add_argument("--cache-path", default="artifacts/cache/graph_cache.pt")
-    parser.add_argument("--checkpoint-path", default="artifacts/runs/graph_baseline/best_checkpoint.pt")
-    parser.add_argument("--out-dir", default="artifacts/handoff")
+    parser.add_argument(
+        "--cache-path",
+        default=str(PACKAGE_DIR / "artifacts" / "cache" / "graph_cache_train_test.pt"),
+    )
+    parser.add_argument(
+        "--checkpoint-path",
+        default=str(PACKAGE_DIR / "artifacts" / "runs" / "graph_baseline" / "best_checkpoint.pt"),
+    )
+    parser.add_argument("--out-dir", default=str(PACKAGE_DIR / "artifacts" / "handoff"))
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--conv-type", choices=["sage", "gcn"], default="sage")
     parser.add_argument("--num-workers", type=int, default=4)

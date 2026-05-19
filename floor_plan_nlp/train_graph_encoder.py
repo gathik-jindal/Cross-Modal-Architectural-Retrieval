@@ -11,13 +11,25 @@ import torch.nn as nn
 from torch import amp
 from torch.utils.data import Dataset, Sampler
 
-from graph_dataset import (
-    BucketBatchSampler,
-    build_cache_from_dirs,
-    graph_label_from_semantics,
-    load_cache,
-)
-from graph_model import GraphPlanEncoder
+if __package__:
+    from .graph_dataset import (
+        BucketBatchSampler,
+        build_cache_from_dirs,
+        graph_label_from_semantics,
+        load_cache,
+    )
+    from .graph_model import GraphPlanEncoder
+else:  # pragma: no cover - direct script execution
+    from graph_dataset import (
+        BucketBatchSampler,
+        build_cache_from_dirs,
+        graph_label_from_semantics,
+        load_cache,
+    )
+    from graph_model import GraphPlanEncoder
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PACKAGE_DIR = Path(__file__).resolve().parent
 
 try:
     from torch_geometric.loader import DataLoader
@@ -203,11 +215,20 @@ def format_seconds(seconds: float) -> str:
 
 def main():
     parser = argparse.ArgumentParser(description="Train Person 2 GNN baseline")
-    parser.add_argument("--train-dir", default="../train")
-    parser.add_argument("--test-dir", default="../test")
-    parser.add_argument("--cache-path", default="artifacts/cache/graph_cache_train_test.pt")
-    parser.add_argument("--cache-stats-path", default="artifacts/cache/cache_stats.json")
-    parser.add_argument("--run-dir", default="artifacts/runs/graph_baseline")
+    parser.add_argument("--train-dir", default=str(PROJECT_ROOT / "contracts" / "train"))
+    parser.add_argument("--test-dir", default=str(PROJECT_ROOT / "contracts" / "test"))
+    parser.add_argument(
+        "--cache-path",
+        default=str(PACKAGE_DIR / "artifacts" / "cache" / "graph_cache_train_test.pt"),
+    )
+    parser.add_argument(
+        "--cache-stats-path",
+        default=str(PACKAGE_DIR / "artifacts" / "cache" / "cache_stats.json"),
+    )
+    parser.add_argument(
+        "--run-dir",
+        default=str(PACKAGE_DIR / "artifacts" / "runs" / "graph_baseline"),
+    )
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument(
         "--max-nodes-per-batch",

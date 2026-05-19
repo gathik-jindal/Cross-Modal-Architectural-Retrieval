@@ -1,66 +1,145 @@
 # Cross-Modal Architectural Retrieval
 
-Cross-modal retrieval pipeline for FloorPlanCAD-style floor plans, combining:
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![PyTorch Geometric](https://img.shields.io/badge/PyG-Graph%20Learning-3C2179)](https://pyg.org/)
+[![Transformers](https://img.shields.io/badge/Hugging%20Face-Transformers-FFD21E)](https://huggingface.co/docs/transformers)
+[![OpenAI CLIP](https://img.shields.io/badge/OpenAI-CLIP-111111)](https://github.com/openai/CLIP)
+[![Dataset](https://img.shields.io/badge/Dataset-FloorPlanCAD-2E7D32)](https://floorplancad.github.io/)
 
-- a graph encoder (GNN) over contract JSONs, and
-- a text encoder for natural-language floor plan queries.
+Natural-language retrieval for architectural floor plans. The system turns FloorPlanCAD-style SVG drawings into graph contracts, learns plan embeddings with a graph neural network, aligns those embeddings with natural-language queries, and retrieves the most relevant floor plans using cosine similarity.
 
-The objective is to place both modalities in a shared embedding space for retrieval.
+## Results
 
-## Overview
+These are the current checked-in experiment results from `floor_plan_nlp/artifacts/`.
 
-This repository contains two main branches:
+### Graph Encoder Baseline
 
-1. **Graph branch (plan geometry/structure)**
-   - Parses/consumes floor plan contract JSON files
-   - Trains a graph encoder
-   - Exports normalized plan embeddings
+| Metric | Value |
+|---|---:|
+| Graphs processed | 4,265 |
+| Train / Val / Test split | 3,412 / 426 / 427 |
+| Best epoch | 10 |
+| Best validation loss | 0.9961 |
+| Validation accuracy | 72.30% |
+| Test accuracy | 68.85% |
+| Training wall time | 7m 04s |
+| Device | CUDA with mixed precision |
 
-2. **Text branch (user/query language)**
-   - Encodes query text into vectors
-   - Supports retrieval against exported plan embeddings
+### Text-to-Plan Retrieval
 
-## Core Files
+Exact floor-plan ID retrieval over a 6,000-plan index using 200 held-out text queries.
 
-### Graph pipeline
+| Metric | Model | Random Baseline | Lift |
+|---|---:|---:|---:|
+| Recall@1 | 2.00% | 0.0167% | 120.0x |
+| Recall@5 | 4.50% | 0.0833% | 54.0x |
+| Recall@10 | 7.00% | 0.1667% | 42.0x |
+| MRR | 3.14% | - | - |
 
-- `floor_plan_nlp/graph_dataset.py`  
-  Converts `*_contract.json` files into PyTorch Geometric graphs (`x`, `edge_index`, `edge_attr`), builds cache, and creates train/val/test splits.
+Per-scale Recall@5:
 
-- `floor_plan_nlp/graph_model.py`  
-  Defines `GraphPlanEncoder` (GraphSAGE/GCN, pooling, projection, L2 normalization).
+| Scale bucket | Recall@5 |
+|---|---:|
+| Commercial / no bedrooms | 0.62% |
+| Small residential | 25.00% |
+| Medium complex | 41.67% |
+| Large complex | 0.00% |
 
-- `floor_plan_nlp/train_graph_encoder.py`  
-  End-to-end training loop, validation, early stopping, and checkpoint/report saving.
+The graph encoder is already learning useful structural representations. The cross-modal retrieval stage also beats random by a wide margin, but the bucket breakdown shows the model is much stronger on small and medium residential plans than on commercial or very large layouts.
 
-- `floor_plan_nlp/export_plan_embeddings.py`  
-  Loads best checkpoint, converts graphs into embeddings, exports `.npy/.pt`, and writes ID-row index mapping.
+## What This Project Does
 
-- `floor_plan_nlp/retrieval_index.py`  
-  Lightweight cosine retrieval index over exported embeddings.
+Architectural retrieval is difficult because the two modalities are very different:
 
-### Upstream contract generation and schema
+- A floor plan is geometric and symbolic: walls, doors, windows, fixtures, room-like objects, topology, and spatial adjacency.
+- A user query is linguistic: "compact residential plan with bedrooms, doors, windows, and connected living spaces."
 
-- `src/svg_parser.py`  
-  SVG to contract JSON parser.
+This repository bridges those two representations. It parses SVG drawings into structured graph contracts, trains a graph encoder to represent each plan as a dense vector, trains a text encoder to map natural-language descriptions into the same vector space, and then performs nearest-neighbor retrieval.
 
-- `src/constants.py`  
-  Semantic ID and layer mapping constants used during contract creation.
-
-- `schema.md`  
-  Contract schema (`metadata`, `nodes`, `edges`, `symbols`).
-
-## Expected Data Layout
-
-Current training scripts expect contract JSON files under:
+At a high level:
 
 ```text
-train/*_contract.json
+SVG / PNG floor plans
+        |
+        v
+SVG parser -> contract JSON -> PyTorch Geometric graph
+        |                              |
+        |                              v
+        |                      GraphPlanEncoder
+        |                              |
+        v                              v
+Generated text pairs          Plan embedding space
+        |                              ^
+        v                              |
+Transformer text encoder -> contrastive alignment
+        |
+        v
+Text query -> cosine retrieval -> ranked floor plans
 ```
 
-If you start from raw SVGs, generate contracts first using the parser pipeline in `src/`.
+## Highlights
+
+- Converts raw SVG floor plans into graph-ready contract JSONs.
+- Extracts semantic labels, normalized geometry, path features, symbols, and proximity edges.
+- Uses PyTorch Geometric for graph representation and GraphSAGE/GCN encoders.
+- Uses a Transformer text encoder with contrastive alignment for cross-modal retrieval.
+- Exports reusable `.npy` and `.pt` embedding indexes for fast top-k search.
+- Includes a CLIP image-text baseline for comparison against visual retrieval.
+- Keeps experiment artifacts, split files, handoff notes, schema docs, and reports in predictable locations.
+
+## Repository Layout
+
+```text
+.
++-- floor_plan_nlp/         # Main Python package
+|   +-- artifacts/          # Model outputs, graph caches, exported embeddings, reports
+|   +-- *.json              # Query pairs, extracted attributes, eval splits, baseline results
++-- contracts/              # Generated contract JSONs for train/test splits
++-- data/                   # Raw FloorPlanCAD SVG/PNG data and source archives
++-- docs/                   # Schema, mapping notes, handoffs, reference PDFs
++-- artifacts/              # Repo-level generated caches
++-- requirements.txt
+```
+
+The project uses one code package: `floor_plan_nlp/`.
+
+## Core Components
+
+| Component | Files | Role |
+|---|---|---|
+| SVG parsing | `svg_parser.py`, `geometry.py`, `constants.py` | Converts SVG geometry and metadata into contract JSONs |
+| Batch processing | `batch_runner.py` | Generates train/test contract folders from raw SVGs |
+| Graph dataset | `graph_dataset.py` | Converts contract JSONs into PyTorch Geometric `Data` objects |
+| Graph encoder | `graph_model.py`, `train_graph_encoder.py` | Learns structural floor-plan embeddings |
+| Text encoder | `text_encoder.py` | Converts natural-language queries into dense vectors |
+| Pair generation | `extract_dynamic_attributes.py`, `generate_dynamic_queries.py` | Builds text-plan supervision from plan attributes |
+| Alignment | `alignment_trainer.py`, `pair_dataset.py` | Trains text and graph embeddings into a shared space |
+| Retrieval | `retrieval_index.py`, `inference.py`, `evaluate_retrieval.py` | Searches and evaluates the embedding index |
+| CLIP baseline | `clip_baseline.py` | Tests image-text retrieval over rendered plan PNGs |
+
+## Pipeline
+
+| Stage | Entry Point | Output |
+|---|---|---|
+| Contract generation | `python -m floor_plan_nlp.batch_runner` | `contracts/train`, `contracts/test` |
+| Graph cache build | `python -m floor_plan_nlp.train_graph_encoder --rebuild-cache` | `floor_plan_nlp/artifacts/cache` |
+| Graph encoder training | `python -m floor_plan_nlp.train_graph_encoder` | `best_checkpoint.pt`, `train_report.json` |
+| Plan embedding export | `python -m floor_plan_nlp.export_plan_embeddings` | `embeddings.npy`, `embedding_index.json` |
+| Text-graph alignment | `python -m floor_plan_nlp.alignment_trainer` | `best_alignment_checkpoint.pt` |
+| Retrieval evaluation | `python -m floor_plan_nlp.evaluate_retrieval` | Recall@k, MRR, eval JSON |
+| User inference | `python -m floor_plan_nlp.inference` | Ranked floor-plan matches |
+| CLIP baseline | `python -m floor_plan_nlp.clip_baseline` | Image-text retrieval metrics |
 
 ## Setup
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+On Linux/macOS:
 
 ```bash
 python -m venv .venv
@@ -68,66 +147,141 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Train Graph Encoder
+PyTorch Geometric wheels depend on your PyTorch/CUDA combination. If the generic install fails, use the official PyG install selector for your environment.
 
-Run from repository root:
+## Expected Data Layout
 
-```bash
-python floor_plan_nlp/train_graph_encoder.py \
-  --train-dir train \
-  --cache-path floor_plan_nlp/artifacts/cache/graph_cache.pt \
-  --cache-stats-path floor_plan_nlp/artifacts/cache/cache_stats.json \
-  --split-path floor_plan_nlp/artifacts/splits/train_val_test_split.json \
-  --run-dir floor_plan_nlp/artifacts/runs/graph_baseline
+```text
+data/
++-- train/                  # Raw train SVG/PNG files
++-- test/                   # Raw test SVG/PNG files
+
+contracts/
++-- train/                  # *_contract.json files
++-- test/                   # *_contract.json files
 ```
 
-Primary outputs:
+Large raw data, generated contracts, checkpoints, `.pt`, and `.npy` files are intentionally excluded from Git. Contract fields are documented in [docs/schema.md](docs/schema.md).
 
-- `floor_plan_nlp/artifacts/runs/graph_baseline/best_checkpoint.pt`
-- `floor_plan_nlp/artifacts/runs/graph_baseline/train_report.json`
+## Generate Contracts
+
+```bash
+python -m floor_plan_nlp.batch_runner
+```
+
+This reads from `data/train` and `data/test`, then writes contract JSONs to:
+
+```text
+contracts/train/
+contracts/test/
+```
+
+Each contract contains:
+
+- `metadata`: source filename, viewBox, layer counts, and summary stats.
+- `nodes`: geometry entities with semantic labels, normalized centers, bounding boxes, lengths, and raw attributes.
+- `edges`: proximity relationships between entities.
+- `symbols`: grouped semantic instances such as doors, windows, furniture, or room-like elements.
+
+## Train Graph Encoder
+
+```bash
+python -m floor_plan_nlp.train_graph_encoder --rebuild-cache
+```
+
+Useful options:
+
+```bash
+python -m floor_plan_nlp.train_graph_encoder ^
+  --epochs 10 ^
+  --batch-size 8 ^
+  --max-nodes-per-batch 3500 ^
+  --conv-type sage
+```
+
+Main outputs:
+
+```text
+floor_plan_nlp/artifacts/cache/graph_cache_train_test.pt
+floor_plan_nlp/artifacts/cache/cache_stats.json
+floor_plan_nlp/artifacts/runs/graph_baseline/best_checkpoint.pt
+floor_plan_nlp/artifacts/runs/graph_baseline/train_report.json
+```
 
 ## Export Plan Embeddings
 
 ```bash
-python floor_plan_nlp/export_plan_embeddings.py \
-  --cache-path floor_plan_nlp/artifacts/cache/graph_cache.pt \
-  --checkpoint-path floor_plan_nlp/artifacts/runs/graph_baseline/best_checkpoint.pt \
-  --out-dir floor_plan_nlp/artifacts/handoff
+python -m floor_plan_nlp.export_plan_embeddings
 ```
 
-Generated artifacts:
+Main outputs:
 
-- `floor_plan_nlp/artifacts/handoff/embeddings.npy`
-- `floor_plan_nlp/artifacts/handoff/embeddings.pt`
-- `floor_plan_nlp/artifacts/handoff/embedding_index.json`
-- `floor_plan_nlp/artifacts/handoff/handoff_summary.json`
+```text
+floor_plan_nlp/artifacts/handoff/embeddings.npy
+floor_plan_nlp/artifacts/handoff/embeddings.pt
+floor_plan_nlp/artifacts/handoff/embedding_index.json
+floor_plan_nlp/artifacts/handoff/handoff_summary.json
+```
 
-## Retrieval
-
-Example self-retrieval/smoke retrieval:
+## Train Text-Graph Alignment
 
 ```bash
-python floor_plan_nlp/retrieval_index.py \
-  --embeddings-path floor_plan_nlp/artifacts/handoff/embeddings.npy \
-  --index-path floor_plan_nlp/artifacts/handoff/embedding_index.json \
-  --query-floor-plan-id 0000-0002.svg \
-  --top-k 10
+python -m floor_plan_nlp.alignment_trainer --epochs 10 --batch-size 16 --skip-oom-batches
 ```
 
-## Training Snapshot (Current Baseline)
+Then export aligned graph embeddings:
 
-From `floor_plan_nlp/artifacts/runs/graph_baseline/train_report.json`:
+```bash
+python -m floor_plan_nlp.export_plan_embeddings ^
+  --checkpoint-path floor_plan_nlp/artifacts/runs/alignment/best_alignment_checkpoint.pt ^
+  --out-dir floor_plan_nlp/artifacts/handoff_aligned
+```
 
-- Graphs: `4265`
-- Split sizes: train `3412`, val `426`, test `427`
-- Best epoch: `10`
-- Best val loss: `0.9961`
-- Test accuracy: `0.6885`
+Alignment uses a CLIP-style contrastive objective: matching text-plan pairs are pulled together in embedding space while non-matching pairs in the batch are pushed apart.
 
-## Notes on Query Quality
+## Evaluate Retrieval
 
-For stable cross-modal performance, text queries should be generated from actual dataset facts (contract JSON semantics and structure), not random synthetic combinations. Misaligned query generation can significantly degrade retrieval quality even when the graph encoder is trained correctly.
+```bash
+python -m floor_plan_nlp.evaluate_retrieval ^
+  --checkpoint floor_plan_nlp/artifacts/runs/alignment/best_alignment_checkpoint.pt ^
+  --out-json floor_plan_nlp/artifacts/eval_results.json
+```
+
+The evaluator uses exact floor-plan ID match as ground truth and reports Recall@1, Recall@5, Recall@10, MRR, random baselines, and per-scale bucket performance.
+
+## Run Inference
+
+```bash
+python -m floor_plan_nlp.inference ^
+  --query "a compact residential floor plan with bedrooms, doors, windows, and connected living spaces" ^
+  --top-k 5
+```
+
+The command returns ranked floor-plan IDs, source contract paths, and cosine similarity scores.
+
+## CLIP Baseline
+
+Zero-shot:
+
+```bash
+python -m floor_plan_nlp.clip_baseline --mode zero-shot --cache artifacts/cache/clip
+```
+
+Fine-tune and compare:
+
+```bash
+python -m floor_plan_nlp.clip_baseline --mode both --epochs 5 --batch 64 --checkpoint artifacts/cache/finetuned_clip.pt
+```
+
+The CLIP baseline evaluates direct image-text matching over plan PNGs. It is useful as a visual retrieval comparison against the structured graph pipeline.
+
+## Notes
+
+- Query quality matters. Strong retrieval depends on text pairs generated from real plan attributes rather than random synthetic descriptions.
+- Use `python -m floor_plan_nlp.<module>` from the repository root for the most reliable imports.
+- Keep raw data and generated artifacts out of Git unless there is a specific release reason to include them.
+- Reference material and handoff notes live in `docs/`.
 
 ## Dataset Reference
 
-- FloorPlanCAD: <https://floorplancad.github.io/>
+FloorPlanCAD: <https://floorplancad.github.io/>

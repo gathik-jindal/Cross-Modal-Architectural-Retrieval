@@ -36,9 +36,13 @@ import re
 from collections import defaultdict
 from deep_translator import GoogleTranslator
 
-# Internal Imports
-from constants import SEMANTIC_ID_TO_LABEL, LAYER_LABEL_MAP, LAYER_TRANSLATIONS, SVG_NS, INKSCAPE_NS
-from geometry import parse_path_geometry, segments_bbox, total_length, segment_length
+# Internal imports
+if __package__:
+    from .constants import SEMANTIC_ID_TO_LABEL, LAYER_LABEL_MAP, LAYER_TRANSLATIONS, SVG_NS, INKSCAPE_NS
+    from .geometry import parse_path_geometry, segments_bbox, total_length, segment_length
+else:  # pragma: no cover - direct script execution
+    from constants import SEMANTIC_ID_TO_LABEL, LAYER_LABEL_MAP, LAYER_TRANSLATIONS, SVG_NS, INKSCAPE_NS
+    from geometry import parse_path_geometry, segments_bbox, total_length, segment_length
 
 # ===========================================================================
 # Auto-Translator Cache (Thread-local to avoid parallel write conflicts)

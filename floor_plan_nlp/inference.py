@@ -14,20 +14,25 @@ import json
 import torch
 from pathlib import Path
 
-from text_encoder import TextEncoder, preprocess_query
-from retrieval_index import PlanRetrievalIndex
+if __package__:
+    from .text_encoder import TextEncoder, preprocess_query
+    from .retrieval_index import PlanRetrievalIndex
+else:  # pragma: no cover - direct script execution
+    from text_encoder import TextEncoder, preprocess_query
+    from retrieval_index import PlanRetrievalIndex
 
+PACKAGE_DIR = Path(__file__).resolve().parent
 
 _text_encoder = None
 _retrieval_index = None
 
-DEFAULT_TEXT_CHECKPOINT = "artifacts/runs/alignment/best_alignment_checkpoint.pt"
-DEFAULT_EMBEDDINGS = "artifacts/handoff_aligned/embeddings.npy"
-DEFAULT_EMBEDDING_INDEX = "artifacts/handoff_aligned/embedding_index.json"
+DEFAULT_TEXT_CHECKPOINT = str(PACKAGE_DIR / "artifacts" / "runs" / "alignment" / "best_alignment_checkpoint.pt")
+DEFAULT_EMBEDDINGS = str(PACKAGE_DIR / "artifacts" / "handoff_aligned" / "embeddings.npy")
+DEFAULT_EMBEDDING_INDEX = str(PACKAGE_DIR / "artifacts" / "handoff_aligned" / "embedding_index.json")
 
 # Fallback to pre-alignment embeddings if aligned ones don't exist
-FALLBACK_EMBEDDINGS = "artifacts/handoff/embeddings.npy"
-FALLBACK_EMBEDDING_INDEX = "artifacts/handoff/embedding_index.json"
+FALLBACK_EMBEDDINGS = str(PACKAGE_DIR / "artifacts" / "handoff" / "embeddings.npy")
+FALLBACK_EMBEDDING_INDEX = str(PACKAGE_DIR / "artifacts" / "handoff" / "embedding_index.json")
 
 
 def _load_models(text_checkpoint: str, embeddings: str, embedding_index: str):

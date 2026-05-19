@@ -5,6 +5,8 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
+PACKAGE_DIR = Path(__file__).resolve().parent
+
 
 class PlanRetrievalIndex:
     """
@@ -97,8 +99,14 @@ def _load_query_vector(path: str) -> np.ndarray:
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Person 4 retrieval index using Person 2 embeddings")
-    parser.add_argument("--embeddings-path", default="artifacts/handoff/embeddings.npy")
-    parser.add_argument("--index-path", default="artifacts/handoff/embedding_index.json")
+    parser.add_argument(
+        "--embeddings-path",
+        default=str(PACKAGE_DIR / "artifacts" / "handoff" / "embeddings.npy"),
+    )
+    parser.add_argument(
+        "--index-path",
+        default=str(PACKAGE_DIR / "artifacts" / "handoff" / "embedding_index.json"),
+    )
     parser.add_argument("--top-k", type=int, default=10)
 
     query_group = parser.add_mutually_exclusive_group(required=True)

@@ -3,7 +3,10 @@ import torch
 import torch.nn.functional as F
 from pathlib import Path
 from collections import defaultdict
-from text_encoder import TextEncoder, QueryDataset, preprocess_query
+if __package__:
+    from .text_encoder import TextEncoder, QueryDataset, preprocess_query
+else:  # pragma: no cover - direct script execution
+    from text_encoder import TextEncoder, QueryDataset, preprocess_query
 
 
 # ── 1. Retrieval Simulation ───────────────────────────────────────────────────

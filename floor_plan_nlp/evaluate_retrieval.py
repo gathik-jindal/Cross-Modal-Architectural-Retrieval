@@ -24,8 +24,14 @@ import torch
 from pathlib import Path
 from collections import defaultdict
 
-from text_encoder import TextEncoder, preprocess_query
-from retrieval_index import PlanRetrievalIndex
+if __package__:
+    from .text_encoder import TextEncoder, preprocess_query
+    from .retrieval_index import PlanRetrievalIndex
+else:  # pragma: no cover - direct script execution
+    from text_encoder import TextEncoder, preprocess_query
+    from retrieval_index import PlanRetrievalIndex
+
+PACKAGE_DIR = Path(__file__).resolve().parent
 
 
 def _norm_id(fid: str) -> str:
@@ -238,11 +244,17 @@ def evaluate(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate cross-modal retrieval (exact match)")
     parser.add_argument("--checkpoint", default="")
-    parser.add_argument("--pairs", default="pairs.json")
-    parser.add_argument("--embeddings", default="artifacts/handoff_aligned/embeddings.npy")
-    parser.add_argument("--embedding-index", default="artifacts/handoff_aligned/embedding_index.json")
+    parser.add_argument("--pairs", default=str(PACKAGE_DIR / "test_pairs.json"))
+    parser.add_argument(
+        "--embeddings",
+        default=str(PACKAGE_DIR / "artifacts" / "handoff_aligned" / "embeddings.npy"),
+    )
+    parser.add_argument(
+        "--embedding-index",
+        default=str(PACKAGE_DIR / "artifacts" / "handoff_aligned" / "embedding_index.json"),
+    )
     parser.add_argument("--n-test", type=int, default=200)
-    parser.add_argument("--eval-split", default="eval_split.json")
+    parser.add_argument("--eval-split", default=str(PACKAGE_DIR / "eval_split.json"))
     parser.add_argument("--create-split", action="store_true")
     parser.add_argument("--split-seed", type=int, default=99)
     parser.add_argument("--out-json", default="")

@@ -17,13 +17,24 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, random_split
 
-from text_encoder import TextEncoder
-from graph_model import GraphPlanEncoder
-from pair_dataset import (
-    BalancedCategoryBatchSampler,
-    PairedDataset,
-    paired_collate_fn,
-)
+if __package__:
+    from .text_encoder import TextEncoder
+    from .graph_model import GraphPlanEncoder
+    from .pair_dataset import (
+        BalancedCategoryBatchSampler,
+        PairedDataset,
+        paired_collate_fn,
+    )
+else:  # pragma: no cover - direct script execution
+    from text_encoder import TextEncoder
+    from graph_model import GraphPlanEncoder
+    from pair_dataset import (
+        BalancedCategoryBatchSampler,
+        PairedDataset,
+        paired_collate_fn,
+    )
+
+PACKAGE_DIR = Path(__file__).resolve().parent
 
 
 # ── Loss ─────────────────────────────────────────────────────────────────────
@@ -408,13 +419,16 @@ def train(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Contrastive alignment training")
-    parser.add_argument("--pairs", default="pairs.json")
+    parser.add_argument("--pairs", default=str(PACKAGE_DIR / "train_pairs.json"))
     parser.add_argument(
         "--graph-checkpoint",
-        default="artifacts/runs/graph_baseline/best_checkpoint.pt",
+        default=str(PACKAGE_DIR / "artifacts" / "runs" / "graph_baseline" / "best_checkpoint.pt"),
     )
-    parser.add_argument("--cache", default="artifacts/cache/graph_cache.pt")
-    parser.add_argument("--out-dir", default="artifacts/runs/alignment")
+    parser.add_argument(
+        "--cache",
+        default=str(PACKAGE_DIR / "artifacts" / "cache" / "graph_cache_train_test.pt"),
+    )
+    parser.add_argument("--out-dir", default=str(PACKAGE_DIR / "artifacts" / "runs" / "alignment"))
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--lr-text", type=float, default=1e-3)
@@ -427,7 +441,7 @@ if __name__ == "__main__":
     parser.add_argument("--resume", action="store_true")
     parser.add_argument(
         "--resume-checkpoint",
-        default="artifacts/runs/alignment/last_alignment_checkpoint.pt",
+        default=str(PACKAGE_DIR / "artifacts" / "runs" / "alignment" / "last_alignment_checkpoint.pt"),
     )
     args = parser.parse_args()
     train(args)

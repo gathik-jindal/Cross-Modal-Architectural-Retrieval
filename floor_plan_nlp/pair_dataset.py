@@ -17,7 +17,10 @@ try:
 except ImportError:
     raise ImportError("pip install torch-geometric")
 
-from graph_dataset import contract_json_to_pyg, load_cache
+if __package__:
+    from .graph_dataset import contract_json_to_pyg, load_cache
+else:  # pragma: no cover - direct script execution
+    from graph_dataset import contract_json_to_pyg, load_cache
 
 
 class PairedDataset(Dataset):

@@ -1,44 +1,22 @@
-"""
-clip_baseline.py  —  Zero-shot & Fine-tuned CLIP retrieval baseline
-====================================================================
-Layout
-------
+﻿"""
+Zero-shot and fine-tuned CLIP retrieval baseline.
+
+Expected layout:
   project/
     floor_plan_nlp/
+      clip_baseline.py
       train_pairs.json
       test_pairs.json
-    src/
-      clip_baseline.py   ← this file
     data/
       train/
-        0000-0002.png  ...
       test/
-        XXXX-XXXX.png  ...
 
-Usage
------
-  # Zero-shot CLIP evaluated on test (default)
-  python clip_baseline.py --mode zero-shot
-
-  # Fine-tune on train, then evaluate on test
-  python clip_baseline.py --mode fine-tune
-
-  # Run both modes and print a side-by-side comparison
-  python clip_baseline.py --mode both
-
-  # Fine-tune options
-  python clip_baseline.py --mode fine-tune --epochs 10 --batch 64 --lr 5e-6
-
-  # Cache zero-shot embeddings (skips re-encoding on later runs)
-  python clip_baseline.py --mode zero-shot --cache embeddings
-
-  # Save / load the fine-tuned checkpoint
-  python clip_baseline.py --mode fine-tune --checkpoint finetuned_clip.pt
-
-  # Fast sanity-check on a small subset
-  python clip_baseline.py --mode both --subset 200
+Usage:
+  python -m floor_plan_nlp.clip_baseline --mode zero-shot
+  python -m floor_plan_nlp.clip_baseline --mode fine-tune
+  python -m floor_plan_nlp.clip_baseline --mode both
+  python -m floor_plan_nlp.clip_baseline --mode both --subset 200
 """
-
 import argparse
 import json
 import random

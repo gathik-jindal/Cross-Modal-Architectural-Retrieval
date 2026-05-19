@@ -1,12 +1,9 @@
-deep-translator
-tqdm
-
-
-# CLIP baseline requirements
-# Install with: pip install -r requirements_clip.txt
-
-torch>=2.0.0
-torchvision>=0.15.0
+deep-translator>=1.11
+numpy>=1.26
+Pillow>=9.0
+torch>=2.2
+torchvision>=0.17
+torch-geometric>=2.5
+tqdm>=4.66
+transformers>=4.40
 git+https://github.com/openai/CLIP.git
-Pillow>=9.0.0
-tqdm>=4.65.0

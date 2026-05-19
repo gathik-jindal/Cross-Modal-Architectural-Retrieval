@@ -4,8 +4,11 @@ import concurrent.futures
 import time
 from tqdm import tqdm  # <-- Import tqdm
 
-# Import the main parser function from your svg_parser.py
-from svg_parser import parse_svg_to_contract
+# Import the main parser function from the merged package.
+if __package__:
+    from .svg_parser import parse_svg_to_contract
+else:  # pragma: no cover - direct script execution
+    from svg_parser import parse_svg_to_contract
 
 def process_single_svg(svg_path, output_dir):
     """Worker function to process a single file and catch any individual crashes."""
