@@ -48,6 +48,26 @@ Per-scale Recall@5:
 
 The graph encoder is already learning useful structural representations. The cross-modal retrieval stage also beats random by a wide margin, but the bucket breakdown shows the model is much stronger on small and medium residential plans than on commercial or very large layouts.
 
+## Index
+
+- [Results](#results)
+- [What This Project Does](#what-this-project-does)
+- [Highlights](#highlights)
+- [Repository Layout](#repository-layout)
+- [Core Components](#core-components)
+- [Pipeline](#pipeline)
+- [Setup](#setup)
+- [Expected Data Layout](#expected-data-layout)
+- [Generate Contracts](#generate-contracts)
+- [Train Graph Encoder](#train-graph-encoder)
+- [Export Plan Embeddings](#export-plan-embeddings)
+- [Train Text-Graph Alignment](#train-text-graph-alignment)
+- [Evaluate Retrieval](#evaluate-retrieval)
+- [Run Inference](#run-inference)
+- [CLIP Baseline](#clip-baseline)
+- [Notes](#notes)
+- [Dataset Reference](#dataset-reference)
+
 ## What This Project Does
 
 Architectural retrieval is difficult because the two modalities are very different:
